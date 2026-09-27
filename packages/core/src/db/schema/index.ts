@@ -1,6 +1,7 @@
 export * from './audit'
 export * from './auth'
 export * from './cells'
+export * from './docs'
 export * from './enums'
 export * from './oauth'
 export * from './projects'

@@ -127,6 +127,8 @@ export const cellLinks = pgTable(
     title: text('title').notNull(),
     url: text('url').notNull(),
     kind: linkKind('kind').notNull().default('other'),
+    /** Set when the link points at a Stagegrid document (phase 7). */
+    documentId: uuid('document_id'),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: ts('created_at').notNull().defaultNow(),
     deletedAt: ts('deleted_at'),
