@@ -17,9 +17,33 @@ const board: BoardDto = {
     { id: 's2', name: 'QA', position: 'a1', archivedAt: null },
   ],
   items: [
-    { id: 'i1', parentId: null, name: 'Login', position: 'a0', depth: 0, assignees: [] },
-    { id: 'i2', parentId: null, name: 'Settings', position: 'a1', depth: 0, assignees: [] },
-    { id: 'i3', parentId: 'i2', name: 'Users', position: 'a0', depth: 1, assignees: [] },
+    {
+      id: 'i1',
+      parentId: null,
+      name: 'Login',
+      position: 'a0',
+      depth: 0,
+      assignees: [],
+      releases: [],
+    },
+    {
+      id: 'i2',
+      parentId: null,
+      name: 'Settings',
+      position: 'a1',
+      depth: 0,
+      assignees: [],
+      releases: [],
+    },
+    {
+      id: 'i3',
+      parentId: 'i2',
+      name: 'Users',
+      position: 'a0',
+      depth: 1,
+      assignees: [],
+      releases: [],
+    },
   ],
   cells: {
     i1: {

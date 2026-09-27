@@ -12,6 +12,7 @@ import { requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
 import { refError } from './refs'
+import { addStageCellsToReleases } from './releases.service'
 import { ensureCells, loadItems, loadStages, type StageRow } from './structure'
 
 export function toStageDto(s: StageRow): StageDto {
@@ -89,6 +90,7 @@ export async function createStage(
       now,
       newId,
     )
+    await addStageCellsToReleases(tx, project.id, stage!.id, now)
     await audit(tx, txCtx, {
       projectId: project.id,
       action: 'stage.create',
@@ -193,6 +195,7 @@ export async function setStageArchived(
         now,
         newId,
       )
+      await addStageCellsToReleases(tx, project.id, stageId, now)
     }
     await audit(tx, txCtx, {
       projectId: project.id,

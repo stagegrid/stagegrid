@@ -7,6 +7,7 @@ import { requireProjectRole } from './access'
 import { loadAssignees, loadCommentsByCell, loadLinksByCell } from './cell-details.service'
 import type { ServiceContext } from './context'
 import { makeResolver } from './refs'
+import { getRelease, listReleases } from './releases.service'
 import { loadCells, loadItems, loadStages } from './structure'
 
 interface TreeNodeOut {
@@ -57,6 +58,27 @@ export async function exportJson(ctx: ServiceContext, ref: string) {
   const stageName = new Map(stageRows.map((s) => [s.id, s.name]))
   const order = new Map(ordered.map((i, n) => [i.id, n]))
   const stageOrder = new Map(stageRows.map((s, n) => [s.id, n]))
+  const releaseList = await Promise.all(
+    (await listReleases(ctx, project.id)).map(async (summary) => {
+      const r = await getRelease(ctx, project.id, summary.id)
+      const stageName = new Map(r.stages.map((s) => [s.id, s.name]))
+      return {
+        name: r.name,
+        targetDate: r.targetDate,
+        status: r.status,
+        phases: r.phases.map(({ id: _id, ...p }) => p),
+        items: r.scope
+          .filter((i) => i.kind)
+          .map((i) => ({
+            path: i.path,
+            kind: i.kind,
+            note: i.note,
+            stages: Object.keys(i.cells).map((sid) => stageName.get(sid)),
+          })),
+        snapshot: r.snapshot,
+      }
+    }),
+  )
   return {
     version: 1,
     exportedAt: ctx.now().toISOString(),
@@ -69,6 +91,7 @@ export async function exportJson(ctx: ServiceContext, ref: string) {
     },
     stages: stageRows.map((s) => s.name),
     items: roots,
+    releases: releaseList,
     cells: [...cellRows]
       .sort(
         (a, b) =>
