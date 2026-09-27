@@ -21,6 +21,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -30,11 +37,15 @@ import { useBoard } from './queries'
 import { SummaryPanel } from './SummaryPanel'
 import { useLocalBoolean, useLocalSet } from './useLocalSet'
 import { useProjectStream } from './useProjectStream'
-import { visibleRows } from './visible-rows'
+import { assigneeKey, visibleRows } from './visible-rows'
+
+const ALL = '__all__'
 
 export interface BoardSearch {
   todo?: boolean
   stale?: boolean
+  /** assignee key, see `assigneeKey` */
+  who?: string
 }
 
 export function BoardPage({
@@ -56,9 +67,15 @@ export function BoardPage({
   const [present, setPresent] = useState(false)
   const [adding, setAdding] = useState<{ parent: { id: string; name: string } | null } | null>(null)
   const filters = useMemo(
-    () => ({ allToDo: !!search.todo, needsUpdate: !!search.stale }),
-    [search.todo, search.stale],
+    () => ({ allToDo: !!search.todo, needsUpdate: !!search.stale, assignee: search.who }),
+    [search.todo, search.stale, search.who],
   )
+  const people = useMemo(() => {
+    const byKey = new Map<string, string>()
+    for (const i of board?.items ?? [])
+      for (const a of i.assignees) byKey.set(assigneeKey(a), a.name)
+    return [...byKey].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [board])
   const rows = useMemo(
     () => (board ? visibleRows(board, collapsed, filters) : []),
     [board, collapsed, filters],
@@ -100,6 +117,24 @@ export function BoardPage({
           </span>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-3">
+          {people.length > 0 && (
+            <Select
+              value={search.who ?? ALL}
+              onValueChange={(v) => setSearch({ ...search, who: v === ALL ? undefined : v })}
+            >
+              <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Filter by assignee">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Everyone</SelectItem>
+                {people.map(([key, name]) => (
+                  <SelectItem key={key} value={key}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Label className="flex items-center gap-1.5 text-xs font-normal">
             <Checkbox
               checked={filters.allToDo}

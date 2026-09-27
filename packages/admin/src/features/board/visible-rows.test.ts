@@ -10,6 +10,7 @@ function board(
     depth: number,
     statuses: CellStatus[],
     stale?: boolean,
+    who?: string,
   ][],
 ): BoardDto {
   return {
@@ -18,7 +19,14 @@ function board(
       { id: 's1', name: 'A', position: 'a0', archivedAt: null },
       { id: 's2', name: 'B', position: 'a1', archivedAt: null },
     ],
-    items: rows.map(([id, parentId, depth]) => ({ id, parentId, name: id, position: 'a0', depth })),
+    items: rows.map(([id, parentId, depth, , , who]) => ({
+      id,
+      parentId,
+      name: id,
+      position: 'a0',
+      depth,
+      assignees: who ? [{ userId: null, name: who }] : [],
+    })),
     cells: Object.fromEntries(
       rows.map(([id, , , st, stale]) => [
         id,
@@ -30,6 +38,8 @@ function board(
               status,
               rework: 0,
               stale: stale && n === 0 ? 'doing_too_long' : null,
+              hasComments: false,
+              hasDocLink: false,
             },
           ]),
         ),
@@ -54,7 +64,7 @@ const b = board([
   ['settings', null, 0, ['done', 'skip']],
   ['users', 'settings', 1, ['done', 'todo']],
   ['roles', 'users', 2, ['done', 'done']],
-  ['reports', null, 0, ['doing', 'todo'], true],
+  ['reports', null, 0, ['doing', 'todo'], true, 'Somchai'],
 ])
 const ids = (rows: ReturnType<typeof visibleRows>) =>
   rows.map((r) => (r.context ? `(${r.item.id})` : r.item.id))
@@ -82,6 +92,11 @@ describe('visibleRows', () => {
   })
   it('Needs update keeps stale rows only', () => {
     expect(ids(visibleRows(b, new Set(), { allToDo: false, needsUpdate: true }))).toEqual([
+      'reports',
+    ])
+  })
+  it('filters by assignee', () => {
+    expect(ids(visibleRows(b, new Set(), { ...none, assignee: 'name:somchai' }))).toEqual([
       'reports',
     ])
   })

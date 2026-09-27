@@ -51,7 +51,12 @@ export function useProjectStream(slug: string): { connected: boolean } {
             ...b.cells,
             [e.itemId]: {
               ...b.cells[e.itemId],
-              [e.stageId]: { id: e.cellId, status: e.status, rework: e.rework, stale: e.stale },
+              [e.stageId]: {
+                ...b.cells[e.itemId]![e.stageId]!,
+                status: e.status,
+                rework: e.rework,
+                stale: e.stale,
+              },
             },
           },
         }

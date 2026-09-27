@@ -1,5 +1,6 @@
 import type { BoardDto } from '@stagegrid/shared'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { FileTextIcon, MessageSquareIcon } from 'lucide-react'
 import { type KeyboardEvent, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -194,6 +195,12 @@ export function BoardGrid({
                         highlights[cell.id] && 'ring-primary animate-pulse ring-2',
                       )}
                     >
+                      {(cell.hasComments || cell.hasDocLink) && (
+                        <span className="absolute inset-y-0 left-1 flex items-center gap-0.5 opacity-80">
+                          {cell.hasDocLink && <FileTextIcon className="size-3" aria-hidden />}
+                          {cell.hasComments && <MessageSquareIcon className="size-3" aria-hidden />}
+                        </span>
+                      )}
                       {cell.rework > 0 && (
                         <span className="absolute inset-y-0 right-1 flex items-center">
                           ×{cell.rework + 1}
