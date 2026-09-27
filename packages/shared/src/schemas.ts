@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { CELL_STATUSES, LIMITS, PATH_SEPARATOR, PROJECT_ROLES } from './constants'
+import { CELL_STATUSES, LIMITS, LINK_KINDS, PATH_SEPARATOR, PROJECT_ROLES } from './constants'
 import { isValidTimeZone } from './time'
 
 export const nameSchema = (max: number) => z.string().trim().min(1).max(max)
@@ -118,6 +118,26 @@ export const moveItemInput = z.object({
   after: refSchema.optional(),
 })
 
+// ---- cell details
+export const dateSchema = z.iso.date()
+export const assigneeInput = z.union([
+  z.object({ userId: z.uuid() }),
+  z.object({ name: nameSchema(LIMITS.assigneeName) }),
+])
+export const urlSchema = z
+  .string()
+  .trim()
+  .max(LIMITS.linkUrl)
+  .pipe(z.url({ protocol: /^https?$/ }))
+export const linkInput = z.object({
+  title: nameSchema(LIMITS.linkTitle),
+  url: urlSchema,
+  kind: z.enum(LINK_KINDS).default('other'),
+})
+export const commentBodySchema = z.string().trim().min(1).max(LIMITS.commentBody)
+export const commentInput = z.object({ body: commentBodySchema })
+export const editEventInput = z.object({ happenedAt: isoDateTimeSchema })
+
 // ---- changes
 export const changeInput = z.object({
   item: refSchema,
@@ -125,6 +145,15 @@ export const changeInput = z.object({
   status: cellStatusSchema.optional(),
   happenedAt: isoDateTimeSchema.optional(),
   reason: z.string().trim().max(LIMITS.reason).optional(),
+  assignees: z
+    .array(assigneeInput)
+    .max(LIMITS.assigneesPerCell)
+    .optional()
+    .describe('Replaces all assignees of the cell'),
+  plannedStart: dateSchema.nullable().optional(),
+  plannedEnd: dateSchema.nullable().optional(),
+  comment: commentBodySchema.optional(),
+  link: linkInput.optional(),
 })
 export const changesInput = z.object({
   changes: z.array(changeInput).min(1).max(LIMITS.changesPerRequest),
@@ -142,3 +171,5 @@ export type CreateItemsInput = z.infer<typeof createItemsInput>
 export type MoveItemInput = z.infer<typeof moveItemInput>
 export type ChangeInput = z.infer<typeof changeInput>
 export type ChangesInput = z.infer<typeof changesInput>
+export type AssigneeInput = z.infer<typeof assigneeInput>
+export type LinkInput = z.infer<typeof linkInput>
