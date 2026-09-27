@@ -1,10 +1,12 @@
-import type { Via } from '@stagegrid/shared'
+import type { ItemTreeInput, Via } from '@stagegrid/shared'
 import { eq } from 'drizzle-orm'
 
 import type { Database } from '../../src/db/client'
 import { projectMembers, users } from '../../src/db/schema'
 import { newId } from '../../src/lib/ids'
 import type { Actor, ServiceContext } from '../../src/services/context'
+import { createItems } from '../../src/services/items.service'
+import { createProject } from '../../src/services/projects.service'
 import { TEST_CONFIG } from './env'
 
 export const FIXED_NOW = new Date('2026-10-20T03:00:00.000Z')
@@ -63,4 +65,20 @@ export async function addMember(
 export async function getUser(database: Database, id: string) {
   const [u] = await database.db.select().from(users).where(eq(users.id, id))
   return u!
+}
+
+/** Admin-created project with the default stages (or `stages`) and an optional item tree. */
+export async function seedProject(
+  database: Database,
+  admin: Actor,
+  opts: { name?: string; tree?: ItemTreeInput[]; timezone?: string } = {},
+) {
+  const ctx = makeCtx(database, admin)
+  const project = await createProject(ctx, {
+    name: opts.name ?? 'Clinic OS',
+    description: '',
+    timezone: opts.timezone ?? 'UTC',
+  })
+  if (opts.tree?.length) await createItems(ctx, project.id, { items: opts.tree })
+  return project
 }
