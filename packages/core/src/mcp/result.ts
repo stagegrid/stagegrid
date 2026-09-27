@@ -19,8 +19,7 @@ export function fail(e: unknown): CallToolResult {
   if (e instanceof AppError) {
     const lines = [`${e.code}: ${e.message}`]
     const details = e.details as
-      | { errors?: { index: number; message: string; details?: unknown }[] }
-      | undefined
+      { errors?: { index: number; message: string; details?: unknown }[] } | undefined
     for (const err of details?.errors ?? []) {
       lines.push(
         `- change ${err.index}: ${err.message}${err.details ? ` ${JSON.stringify(err.details)}` : ''}`,

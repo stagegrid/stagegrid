@@ -21,6 +21,16 @@ npm run dev
 
 Open http://localhost:4000/setup and create the first admin.
 
+## Connect an AI assistant
+
+In Stagegrid, click **Connect AI**: it shows the MCP URL (`<APP_URL>/mcp`), creates a token, and gives copy-paste setup for Claude Code, Cursor, VS Code, and Claude Desktop. For clients that only speak stdio:
+
+```bash
+npx -y @stagegrid/mcp --url https://pm.example.com/mcp --token sg_pat_…
+```
+
+The server ships its own guide as MCP prompts/resources, and **Download AI skill** gives a Claude skill plus a plain guide for other assistants.
+
 ## Configuration
 
 | Variable           | Required | Default   |                                           |
