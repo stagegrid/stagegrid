@@ -9,6 +9,7 @@ import { createApp } from './http/app'
 import { createRateLimiter } from './http/middleware/rate-limit'
 import { SseHub } from './realtime/hub'
 import { startListener } from './realtime/listener'
+import { ensureBuiltinTemplates } from './services/docs.service'
 import { needsSetup } from './services/settings.service'
 
 const RETRIES = 10
@@ -47,6 +48,7 @@ export async function startServer(
   const database = await connectWithRetry(config, logger)
   logger.info('running migrations')
   await runMigrations(config.databaseUrl)
+  await ensureBuiltinTemplates(database.db)
   const hub = new SseHub()
   const stopListener = await startListener(config.databaseUrl, hub, logger)
   const app = createApp({

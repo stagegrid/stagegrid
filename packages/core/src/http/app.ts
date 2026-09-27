@@ -13,6 +13,7 @@ import { authMiddleware } from './middleware/auth'
 import { requestId, requestLog, securityHeaders, withDeps } from './middleware/common'
 import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
+import { docRoutes } from './routes/docs'
 import { mcpRoutes } from './routes/mcp'
 import { oauthApiRoutes, oauthRoutes } from './routes/oauth'
 import { projectRoutes } from './routes/projects'
@@ -50,18 +51,24 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.route('/', oauthRoutes)
 
   const api = new Hono<AppEnv>()
-  api.use(
-    '*',
-    bodyLimit({
-      maxSize: 1 * MB,
-      onError: (c) => errorResponse(c, 'payload_too_large', 'Request body is too large'),
-    }),
+  const uploadLimit = bodyLimit({
+    maxSize: 5 * MB + 64 * 1024,
+    onError: (c) => errorResponse(c, 'payload_too_large', 'The file is larger than 5 MB'),
+  })
+  const jsonLimit = bodyLimit({
+    maxSize: 1 * MB,
+    onError: (c) => errorResponse(c, 'payload_too_large', 'Request body is too large'),
+  })
+  // .docx uploads (templates) may be up to 5 MB; everything else 1 MB.
+  api.use('*', (c, next) =>
+    /\/(base-docx|import-sections)$/.test(c.req.path) ? uploadLimit(c, next) : jsonLimit(c, next),
   )
   api.use('*', authMiddleware, originCheck)
   api.route('/', authRoutes)
   api.route('/', userRoutes)
   api.route('/', projectRoutes)
   api.route('/', releaseRoutes)
+  api.route('/', docRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)
   api.route('/', oauthApiRoutes)
