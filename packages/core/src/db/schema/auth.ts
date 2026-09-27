@@ -54,3 +54,21 @@ export const instanceSettings = pgTable('instance_settings', {
   value: jsonb('value').notNull(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
+
+export const apiTokens = pgTable(
+  'api_tokens',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    prefix: text('prefix').notNull(),
+    lastUsedAt: ts('last_used_at'),
+    expiresAt: ts('expires_at'),
+    revokedAt: ts('revoked_at'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('api_tokens_user_idx').on(t.userId)],
+)
