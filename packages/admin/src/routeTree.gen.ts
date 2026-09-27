@@ -20,6 +20,8 @@ import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
 import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
 import { Route as AppPSlugTimelineRouteImport } from './routes/_app.p.$slug.timeline'
+import { Route as AppPSlugReleasesIndexRouteImport } from './routes/_app.p.$slug.releases.index'
+import { Route as AppPSlugReleasesReleaseIdRouteImport } from './routes/_app.p.$slug.releases.$releaseId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -75,6 +77,17 @@ const AppPSlugTimelineRoute = AppPSlugTimelineRouteImport.update({
   path: '/p/$slug/timeline',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPSlugReleasesIndexRoute = AppPSlugReleasesIndexRouteImport.update({
+  id: '/p/$slug/releases/',
+  path: '/p/$slug/releases/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPSlugReleasesReleaseIdRoute =
+  AppPSlugReleasesReleaseIdRouteImport.update({
+    id: '/p/$slug/releases/$releaseId',
+    path: '/p/$slug/releases/$releaseId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +100,8 @@ export interface FileRoutesByFullPath {
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
+  '/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/p/$slug/releases/': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +114,8 @@ export interface FileRoutesByTo {
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug': typeof AppPSlugIndexRoute
+  '/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/p/$slug/releases': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +130,8 @@ export interface FileRoutesById {
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/_app/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
+  '/_app/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/_app/p/$slug/releases/': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +146,8 @@ export interface FileRouteTypes {
     | '/p/$slug/settings'
     | '/p/$slug/timeline'
     | '/p/$slug/'
+    | '/p/$slug/releases/$releaseId'
+    | '/p/$slug/releases/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +160,8 @@ export interface FileRouteTypes {
     | '/p/$slug/settings'
     | '/p/$slug/timeline'
     | '/p/$slug'
+    | '/p/$slug/releases/$releaseId'
+    | '/p/$slug/releases'
   id:
     | '__root__'
     | '/'
@@ -152,6 +175,8 @@ export interface FileRouteTypes {
     | '/_app/p/$slug/settings'
     | '/_app/p/$slug/timeline'
     | '/_app/p/$slug/'
+    | '/_app/p/$slug/releases/$releaseId'
+    | '/_app/p/$slug/releases/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,6 +266,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPSlugTimelineRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/p/$slug/releases/': {
+      id: '/_app/p/$slug/releases/'
+      path: '/p/$slug/releases'
+      fullPath: '/p/$slug/releases/'
+      preLoaderRoute: typeof AppPSlugReleasesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/p/$slug/releases/$releaseId': {
+      id: '/_app/p/$slug/releases/$releaseId'
+      path: '/p/$slug/releases/$releaseId'
+      fullPath: '/p/$slug/releases/$releaseId'
+      preLoaderRoute: typeof AppPSlugReleasesReleaseIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -251,6 +290,8 @@ interface AppRouteChildren {
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
   AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
+  AppPSlugReleasesReleaseIdRoute: typeof AppPSlugReleasesReleaseIdRoute
+  AppPSlugReleasesIndexRoute: typeof AppPSlugReleasesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -260,6 +301,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
   AppPSlugTimelineRoute: AppPSlugTimelineRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
+  AppPSlugReleasesReleaseIdRoute: AppPSlugReleasesReleaseIdRoute,
+  AppPSlugReleasesIndexRoute: AppPSlugReleasesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

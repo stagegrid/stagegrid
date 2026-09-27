@@ -3,9 +3,10 @@ import { Link } from '@tanstack/react-router'
 const TABS = [
   { to: '/p/$slug', label: 'Board', exact: true },
   { to: '/p/$slug/timeline', label: 'Timeline', exact: false },
+  { to: '/p/$slug/releases', label: 'Releases', exact: false },
 ] as const
 
-/** Board | Timeline switcher shown in each project page's toolbar. */
+/** Board | Timeline | Releases switcher shown in each project page's toolbar. */
 export function ProjectTabs({ slug }: { slug: string }) {
   return (
     <nav aria-label="Project views" className="bg-muted flex rounded-md p-0.5 text-xs">
