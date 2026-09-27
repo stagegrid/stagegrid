@@ -26,6 +26,7 @@ function board(
       position: 'a0',
       depth,
       assignees: who ? [{ userId: null, name: who }] : [],
+      releases: [],
     })),
     cells: Object.fromEntries(
       rows.map(([id, , , st, stale]) => [
@@ -98,6 +99,12 @@ describe('visibleRows', () => {
   it('filters by assignee', () => {
     expect(ids(visibleRows(b, new Set(), { ...none, assignee: 'name:somchai' }))).toEqual([
       'reports',
+    ])
+  })
+  it('limits to a set of items (a release scope) with ancestors as context', () => {
+    expect(ids(visibleRows(b, new Set(), { ...none, items: new Set(['users']) }))).toEqual([
+      '(settings)',
+      'users',
     ])
   })
 })

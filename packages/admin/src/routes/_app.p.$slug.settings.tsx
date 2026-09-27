@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { GeneralSection } from '@/features/settings/GeneralSection'
 import { MembersSection } from '@/features/settings/MembersSection'
 import { useProject } from '@/features/settings/queries'
+import { ReleasePhasesSection } from '@/features/settings/ReleasePhasesSection'
 import { StagesSection } from '@/features/settings/StagesSection'
 
 export const Route = createFileRoute('/_app/p/$slug/settings')({
@@ -34,6 +35,7 @@ export const Route = createFileRoute('/_app/p/$slug/settings')({
           <GeneralSection project={project} readOnly={readOnly} />
           <StagesSection slug={project.slug} readOnly={readOnly} />
           <MembersSection slug={project.slug} readOnly={readOnly} />
+          <ReleasePhasesSection project={project} readOnly={readOnly} />
           <section className="grid gap-2">
             <h2 className="text-base font-semibold">Export</h2>
             <div className="flex gap-2">

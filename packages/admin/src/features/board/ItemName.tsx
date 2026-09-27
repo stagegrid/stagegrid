@@ -137,12 +137,29 @@ export function ItemName({
         <span
           className={cn(
             'truncate text-sm',
-            item.assignees.length > 0 ? 'max-w-[65%] shrink-0' : 'min-w-0',
+            item.releases.length > 0 || item.assignees.length > 0
+              ? 'max-w-[65%] shrink-0'
+              : 'min-w-0',
           )}
           title={item.name}
           onDoubleClick={() => canEdit && setEditing(true)}
         >
           {item.name}
+        </span>
+      )}
+      {!editing &&
+        item.releases.slice(0, 2).map((r) => (
+          <span
+            key={r.id}
+            title={r.name}
+            className="bg-primary/15 text-primary max-w-32 min-w-0 truncate rounded px-1 text-[10px] font-medium"
+          >
+            {r.name}
+          </span>
+        ))}
+      {!editing && item.releases.length > 2 && (
+        <span className="text-muted-foreground shrink-0 text-[10px]">
+          +{item.releases.length - 2}
         </span>
       )}
       {!editing && item.assignees.length > 0 && (

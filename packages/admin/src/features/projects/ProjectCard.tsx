@@ -41,6 +41,12 @@ export function ProjectCard({ project }: { project: ProjectDto }) {
               </div>
             ))}
           </dl>
+          {project.nextRelease && (
+            <p className="text-muted-foreground text-xs">
+              Next release: <span className="text-foreground">{project.nextRelease.name}</span> ·{' '}
+              {project.nextRelease.targetDate} · {project.nextRelease.percent}%
+            </p>
+          )}
           {s.stale > 0 && <p className="text-status-stale text-xs">{s.stale} need an update</p>}
         </CardContent>
       </Card>

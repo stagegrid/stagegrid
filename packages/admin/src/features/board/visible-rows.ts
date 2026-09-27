@@ -7,6 +7,8 @@ export interface BoardFilters {
   needsUpdate: boolean
   /** Show only rows assigned to this person: a user id, or `name:<lowercased name>` for free-text names. */
   assignee?: string
+  /** Show only these items (a release's scope) plus their ancestors. */
+  items?: ReadonlySet<string>
 }
 
 export const assigneeKey = (a: { userId: string | null; name: string }): string =>
@@ -35,6 +37,7 @@ export function visibleRows(
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1)
 
   const matches = (i: BoardItemDto): boolean => {
+    if (filters.items && !filters.items.has(i.id)) return false
     if (filters.assignee && !i.assignees.some((a) => assigneeKey(a) === filters.assignee))
       return false
     const cells = Object.values(board.cells[i.id] ?? {})
@@ -43,7 +46,7 @@ export function visibleRows(
       return false
     return true
   }
-  const filtering = filters.allToDo || filters.needsUpdate || !!filters.assignee
+  const filtering = filters.allToDo || filters.needsUpdate || !!filters.assignee || !!filters.items
 
   // subtreeMatch[i] = item i or any descendant matches. Walk backwards so children come first.
   const subtreeMatch = new Map<string, boolean>()

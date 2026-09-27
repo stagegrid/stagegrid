@@ -25,6 +25,7 @@ export function BoardGrid({
   onAddChild,
   nameWidth = 260,
   className,
+  scopeCells,
 }: {
   board: BoardDto
   rows: VisibleRow[]
@@ -32,6 +33,8 @@ export function BoardGrid({
   onAddChild: (item: { id: string; name: string }) => void
   nameWidth?: number
   className?: string
+  /** When set (release filter), cells outside it are dimmed. */
+  scopeCells?: ReadonlySet<string>
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<OpenCell | null>(null)
@@ -191,7 +194,7 @@ export function BoardGrid({
                         'focus-visible:ring-ring relative mx-1 h-5 w-[calc(100%-0.5rem)] rounded-[4px] text-[10px] leading-5 font-semibold transition-shadow focus-visible:ring-2 focus-visible:outline-none',
                         STATUS_META[cell.status].cell,
                         STATUS_META[cell.status].text,
-                        row.context && 'opacity-40',
+                        (row.context || (scopeCells && !scopeCells.has(cell.id))) && 'opacity-40',
                         highlights[cell.id] && 'ring-primary animate-pulse ring-2',
                       )}
                     >
