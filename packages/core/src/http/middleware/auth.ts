@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from 'hono'
 import { getCookie } from 'hono/cookie'
 
 import { authenticateSession } from '../../services/auth.service'
+import { authenticateOAuthAccess } from '../../services/oauth.service'
 import { authenticateToken } from '../../services/tokens.service'
 import type { AppEnv } from '../env'
 
@@ -18,7 +19,9 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   c.set('auth', null)
   const bearer = bearerToken(c.req.header('authorization'))
   if (bearer) {
-    const actor = await authenticateToken(deps.database.db, deps.config, bearer, deps.now(), 'api')
+    const actor =
+      (await authenticateToken(deps.database.db, deps.config, bearer, deps.now(), 'api')) ??
+      (await authenticateOAuthAccess(deps.database.db, deps.config, bearer, deps.now(), 'api'))
     if (actor) c.set('auth', { actor, sessionId: null, via: 'bearer' })
     return next()
   }

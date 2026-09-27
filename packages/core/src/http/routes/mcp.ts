@@ -2,6 +2,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { Hono } from 'hono'
 
 import { createMcpServer } from '../../mcp/server'
+import { authenticateOAuthAccess } from '../../services/oauth.service'
 import { authenticateToken } from '../../services/tokens.service'
 import type { AppEnv } from '../env'
 import { errorResponse } from '../errors'
@@ -9,7 +10,7 @@ import { bearerToken } from '../middleware/auth'
 
 /**
  * MCP over Streamable HTTP, stateless: a fresh server + transport per request. Auth is a bearer
- * token (personal access token now, OAuth later). Browser-originated requests must come from APP_URL.
+ * token: a personal access token or an OAuth access token. Browser-originated requests must come from APP_URL.
  */
 export const mcpRoutes = new Hono<AppEnv>().all('/mcp', async (c) => {
   const deps = c.get('deps')
@@ -18,10 +19,21 @@ export const mcpRoutes = new Hono<AppEnv>().all('/mcp', async (c) => {
     return errorResponse(c, 'forbidden', 'Origin not allowed')
   const token = bearerToken(c.req.header('authorization'))
   const actor = token
-    ? await authenticateToken(deps.database.db, deps.config, token, deps.now(), 'mcp')
+    ? ((await authenticateToken(deps.database.db, deps.config, token, deps.now(), 'mcp')) ??
+      (await authenticateOAuthAccess(deps.database.db, deps.config, token, deps.now(), 'mcp')))
     : null
-  if (!actor)
-    return errorResponse(c, 'unauthenticated', 'Send Authorization: Bearer <Stagegrid API token>')
+  if (!actor) {
+    // Tells OAuth-capable clients (claude.ai, ChatGPT…) where to start (RFC 9728 §5.1).
+    c.header(
+      'WWW-Authenticate',
+      `Bearer resource_metadata="${deps.config.appUrl}/.well-known/oauth-protected-resource/mcp"`,
+    )
+    return errorResponse(
+      c,
+      'unauthenticated',
+      'Send Authorization: Bearer <Stagegrid API token or OAuth access token>',
+    )
+  }
   const server = createMcpServer({
     db: deps.database.db,
     actor,
