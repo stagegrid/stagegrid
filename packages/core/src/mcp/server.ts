@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { ServiceContext } from '../services/context'
 import { guideText, syncText } from './skill'
 import { registerReadTools } from './tools/read'
+import { registerReleaseTools } from './tools/releases'
 import { registerWriteTools } from './tools/write'
 
 export const MCP_SERVER_INFO = { name: 'stagegrid', version: '0.2.0' }
@@ -16,6 +17,7 @@ export function createMcpServer(ctx: ServiceContext): McpServer {
   })
   registerReadTools(server, ctx)
   registerWriteTools(server, ctx)
+  registerReleaseTools(server, ctx)
 
   server.registerResource(
     'guide',
