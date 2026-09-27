@@ -1,0 +1,60 @@
+{
+  "key": "release-notes",
+  "name": "Release notes",
+  "level": "release",
+  "schema": {
+    "kind": "narrative",
+    "sections": [
+      {
+        "id": "1",
+        "title": "Summary",
+        "level": 1,
+        "hint": "What this release brings, for users, in a short paragraph. Mention the go-live date."
+      },
+      {
+        "id": "2",
+        "title": "New features",
+        "level": 1,
+        "hint": "Lead-in for new features."
+      },
+      {
+        "id": "2.1",
+        "title": "New",
+        "level": 2,
+        "hint": "What users can now do, in plain language. One or two short paragraphs or a bulleted list.",
+        "repeat": {
+          "source": "release_items",
+          "kind": "new"
+        }
+      },
+      {
+        "id": "3",
+        "title": "Changes and improvements",
+        "level": 1,
+        "hint": "Lead-in for changes."
+      },
+      {
+        "id": "3.1",
+        "title": "Change",
+        "level": 2,
+        "hint": "What changed for users and why. Use the note if there is one.",
+        "repeat": {
+          "source": "release_items",
+          "kind": "change"
+        }
+      },
+      {
+        "id": "4",
+        "title": "Known issues",
+        "level": 1,
+        "hint": "Anything that is not finished or behaves unexpectedly, with workarounds."
+      },
+      {
+        "id": "5",
+        "title": "Deployment notes",
+        "level": 1,
+        "hint": "Steps, downtime, data migration, and who to contact."
+      }
+    ]
+  }
+}

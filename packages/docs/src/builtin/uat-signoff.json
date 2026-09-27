@@ -1,0 +1,110 @@
+{
+  "key": "uat-signoff",
+  "name": "UAT sign-off",
+  "level": "release",
+  "schema": {
+    "kind": "form",
+    "fields": [
+      {
+        "id": "release",
+        "label": "Release",
+        "type": "text",
+        "hint": "Release name and target date."
+      },
+      {
+        "id": "uat_period",
+        "label": "UAT period",
+        "type": "text",
+        "hint": "From the release's UAT phase."
+      },
+      {
+        "id": "environment",
+        "label": "Environment",
+        "type": "text",
+        "hint": "Where UAT ran."
+      },
+      {
+        "id": "scope_summary",
+        "label": "Scope",
+        "type": "longtext",
+        "hint": "Items tested (from the release scope)."
+      },
+      {
+        "id": "test_results",
+        "label": "Test results",
+        "type": "table",
+        "hint": "One row per item: result (pass/fail/partial) and remarks.",
+        "columns": [
+          {
+            "id": "item",
+            "label": "Item"
+          },
+          {
+            "id": "result",
+            "label": "Result"
+          },
+          {
+            "id": "remarks",
+            "label": "Remarks"
+          }
+        ]
+      },
+      {
+        "id": "open_issues",
+        "label": "Open issues",
+        "type": "table",
+        "hint": "Issues still open at sign-off.",
+        "columns": [
+          {
+            "id": "issue",
+            "label": "Issue"
+          },
+          {
+            "id": "severity",
+            "label": "Severity"
+          },
+          {
+            "id": "owner",
+            "label": "Owner"
+          },
+          {
+            "id": "due",
+            "label": "Due"
+          }
+        ]
+      },
+      {
+        "id": "conclusion",
+        "label": "Conclusion",
+        "type": "text",
+        "hint": "accepted / accepted with conditions / rejected."
+      },
+      {
+        "id": "conditions",
+        "label": "Conditions",
+        "type": "longtext",
+        "hint": "Conditions for acceptance, if any."
+      },
+      {
+        "id": "signatories",
+        "label": "Signatories",
+        "type": "table",
+        "hint": "Names and roles; leave dates for signing.",
+        "columns": [
+          {
+            "id": "name",
+            "label": "Name"
+          },
+          {
+            "id": "role",
+            "label": "Role"
+          },
+          {
+            "id": "date",
+            "label": "Date"
+          }
+        ]
+      }
+    ]
+  }
+}

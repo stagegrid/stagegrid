@@ -1,0 +1,102 @@
+{
+  "key": "change-request",
+  "name": "Change request (CR)",
+  "level": "project",
+  "schema": {
+    "kind": "form",
+    "fields": [
+      {
+        "id": "cr_number",
+        "label": "CR number",
+        "type": "text",
+        "hint": "Reference number, e.g. CR-012."
+      },
+      {
+        "id": "title",
+        "label": "Title",
+        "type": "text",
+        "hint": "Short name of the change."
+      },
+      {
+        "id": "requested_by",
+        "label": "Requested by",
+        "type": "text",
+        "hint": "Person and organisation."
+      },
+      {
+        "id": "request_date",
+        "label": "Request date",
+        "type": "date",
+        "hint": "YYYY-MM-DD."
+      },
+      {
+        "id": "description",
+        "label": "Description",
+        "type": "longtext",
+        "hint": "What should change, in markdown."
+      },
+      {
+        "id": "reason",
+        "label": "Reason",
+        "type": "longtext",
+        "hint": "Why the change is needed."
+      },
+      {
+        "id": "affected_items",
+        "label": "Affected items",
+        "type": "table",
+        "hint": "Menus/features and stages affected, with the impact.",
+        "columns": [
+          {
+            "id": "item",
+            "label": "Item"
+          },
+          {
+            "id": "stages",
+            "label": "Stages"
+          },
+          {
+            "id": "impact",
+            "label": "Impact"
+          }
+        ]
+      },
+      {
+        "id": "effort_estimate",
+        "label": "Effort estimate",
+        "type": "text",
+        "hint": "E.g. 5 person-days."
+      },
+      {
+        "id": "schedule_impact",
+        "label": "Schedule impact",
+        "type": "longtext",
+        "hint": "Effect on releases and dates."
+      },
+      {
+        "id": "target_release",
+        "label": "Target release",
+        "type": "text",
+        "hint": "Release name if decided."
+      },
+      {
+        "id": "decision",
+        "label": "Decision",
+        "type": "text",
+        "hint": "approved / rejected / deferred."
+      },
+      {
+        "id": "approved_by",
+        "label": "Approved by",
+        "type": "text",
+        "hint": "Name and role."
+      },
+      {
+        "id": "approval_date",
+        "label": "Approval date",
+        "type": "date",
+        "hint": "YYYY-MM-DD."
+      }
+    ]
+  }
+}
