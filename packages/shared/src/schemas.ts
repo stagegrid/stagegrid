@@ -241,3 +241,29 @@ export type CreateReleaseInput = z.infer<typeof createReleaseInput>
 export type UpdateReleaseInput = z.infer<typeof updateReleaseInput>
 export type ReleaseItemInput = z.infer<typeof releaseItemInput>
 export type AddReleaseItemsInput = z.infer<typeof addReleaseItemsInput>
+
+// ---- documents
+export const docDraftInput = z.object({
+  sections: z.record(z.string(), z.string().max(50_000)).optional(),
+  fields: z
+    .record(
+      z.string(),
+      z.union([
+        z.string().max(50_000),
+        z.array(z.string().max(2000)).max(200),
+        z.array(z.record(z.string(), z.string().max(2000))).max(200),
+      ]),
+    )
+    .optional(),
+})
+export const saveDocDraftInput = z.object({
+  template: refSchema.describe('Template key (e.g. "srs") or id'),
+  draft: docDraftInput,
+  title: nameSchema(200).optional(),
+  item: refSchema.optional(),
+  stage: refSchema.optional(),
+  release: refSchema.optional(),
+  documentId: z.uuid().optional().describe('Give it to save a new version of an existing document'),
+})
+export const projectDocTemplatesInput = z.object({ templateIds: z.array(z.uuid()).max(100) })
+export type SaveDocDraftInput = z.infer<typeof saveDocDraftInput>
