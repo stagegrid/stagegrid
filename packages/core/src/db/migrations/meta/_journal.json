@@ -22,6 +22,13 @@
       "when": 1790531011189,
       "tag": "0002_cell_details",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790534504115,
+      "tag": "0003_releases",
+      "breakpoints": true
     }
   ]
 }
