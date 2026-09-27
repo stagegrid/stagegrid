@@ -14,8 +14,11 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AcceptRouteImport } from './routes/accept'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
+import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
+import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,14 +44,29 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectsRoute = AppProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPSlugIndexRoute = AppPSlugIndexRouteImport.update({
   id: '/p/$slug/',
   path: '/p/$slug/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPSlugSettingsRoute = AppPSlugSettingsRouteImport.update({
+  id: '/p/$slug/settings',
+  path: '/p/$slug/settings',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -57,7 +75,10 @@ export interface FileRoutesByFullPath {
   '/accept': typeof AcceptRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/users': typeof AppAdminUsersRoute
+  '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -65,7 +86,10 @@ export interface FileRoutesByTo {
   '/accept': typeof AcceptRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/users': typeof AppAdminUsersRoute
+  '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug': typeof AppPSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -75,14 +99,35 @@ export interface FileRoutesById {
   '/accept': typeof AcceptRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/projects': typeof AppProjectsRoute
+  '/_app/admin/users': typeof AppAdminUsersRoute
+  '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/accept' | '/login' | '/setup' | '/projects' | '/p/$slug/'
+  fullPaths:
+    | '/'
+    | '/accept'
+    | '/login'
+    | '/setup'
+    | '/profile'
+    | '/projects'
+    | '/admin/users'
+    | '/p/$slug/settings'
+    | '/p/$slug/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/accept' | '/login' | '/setup' | '/projects' | '/p/$slug'
+  to:
+    | '/'
+    | '/accept'
+    | '/login'
+    | '/setup'
+    | '/profile'
+    | '/projects'
+    | '/admin/users'
+    | '/p/$slug/settings'
+    | '/p/$slug'
   id:
     | '__root__'
     | '/'
@@ -90,7 +135,10 @@ export interface FileRouteTypes {
     | '/accept'
     | '/login'
     | '/setup'
+    | '/_app/profile'
     | '/_app/projects'
+    | '/_app/admin/users'
+    | '/_app/p/$slug/settings'
     | '/_app/p/$slug/'
   fileRoutesById: FileRoutesById
 }
@@ -139,11 +187,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/projects': {
       id: '/_app/projects'
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof AppProjectsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/users': {
+      id: '/_app/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AppAdminUsersRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/p/$slug/': {
@@ -153,16 +215,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPSlugIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/p/$slug/settings': {
+      id: '/_app/p/$slug/settings'
+      path: '/p/$slug/settings'
+      fullPath: '/p/$slug/settings'
+      preLoaderRoute: typeof AppPSlugSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppProfileRoute: typeof AppProfileRoute
   AppProjectsRoute: typeof AppProjectsRoute
+  AppAdminUsersRoute: typeof AppAdminUsersRoute
+  AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppProfileRoute: AppProfileRoute,
   AppProjectsRoute: AppProjectsRoute,
+  AppAdminUsersRoute: AppAdminUsersRoute,
+  AppPSlugSettingsRoute: AppPSlugSettingsRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
 }
 
