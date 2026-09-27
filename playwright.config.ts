@@ -5,6 +5,7 @@ const PORT = 4173
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
+  // board.spec.ts creates the admin and project the later specs use; files run in name order.
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
