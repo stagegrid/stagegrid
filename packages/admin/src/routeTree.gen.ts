@@ -19,6 +19,7 @@ import { Route as AppProjectsRouteImport } from './routes/_app.projects'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
 import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
+import { Route as AppPSlugTimelineRouteImport } from './routes/_app.p.$slug.timeline'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -69,6 +70,11 @@ const AppPSlugSettingsRoute = AppPSlugSettingsRouteImport.update({
   path: '/p/$slug/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPSlugTimelineRoute = AppPSlugTimelineRouteImport.update({
+  id: '/p/$slug/timeline',
+  path: '/p/$slug/timeline',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof AppProjectsRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AppProjectsRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug': typeof AppPSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_app/projects': typeof AppProjectsRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/_app/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/admin/users'
     | '/p/$slug/settings'
+    | '/p/$slug/timeline'
     | '/p/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/admin/users'
     | '/p/$slug/settings'
+    | '/p/$slug/timeline'
     | '/p/$slug'
   id:
     | '__root__'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_app/projects'
     | '/_app/admin/users'
     | '/_app/p/$slug/settings'
+    | '/_app/p/$slug/timeline'
     | '/_app/p/$slug/'
   fileRoutesById: FileRoutesById
 }
@@ -222,6 +234,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPSlugSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/p/$slug/timeline': {
+      id: '/_app/p/$slug/timeline'
+      path: '/p/$slug/timeline'
+      fullPath: '/p/$slug/timeline'
+      preLoaderRoute: typeof AppPSlugTimelineRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -230,6 +249,7 @@ interface AppRouteChildren {
   AppProjectsRoute: typeof AppProjectsRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
+  AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
 }
 
@@ -238,6 +258,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProjectsRoute: AppProjectsRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
+  AppPSlugTimelineRoute: AppPSlugTimelineRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
 }
 

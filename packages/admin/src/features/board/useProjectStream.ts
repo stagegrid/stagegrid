@@ -39,7 +39,11 @@ export function useProjectStream(slug: string): { connected: boolean } {
   useEffect(() => {
     const source = new EventSource(`/api/v1/projects/${encodeURIComponent(slug)}/stream`)
     let everOpened = false
-    const refetchBoard = () => void queryClient.invalidateQueries({ queryKey: qk.board(slug) })
+    const refetchBoard = () => {
+      void queryClient.invalidateQueries({ queryKey: qk.board(slug) })
+      void queryClient.invalidateQueries({ queryKey: ['timeline', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['burnup', slug] })
+    }
 
     const onCell = (msg: MessageEvent<string>) => {
       const e = JSON.parse(msg.data) as CellUpdated

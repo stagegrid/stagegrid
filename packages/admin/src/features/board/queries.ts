@@ -32,6 +32,8 @@ export function useInvalidateProject(slug: string) {
       queryClient.invalidateQueries({ queryKey: qk.board(slug) }),
       queryClient.invalidateQueries({ queryKey: ['cell', slug] }),
       queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      queryClient.invalidateQueries({ queryKey: ['timeline', slug] }),
+      queryClient.invalidateQueries({ queryKey: ['burnup', slug] }),
     ])
 }
 
