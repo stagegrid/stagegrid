@@ -44,7 +44,7 @@ describe('MCP endpoint', () => {
     expect(evil.status).toBe(403)
   })
 
-  it('lists the phase 2 tools, prompts, and the guide resource', async () => {
+  it('lists the tools, prompts, and the guide resource', async () => {
     const { client } = await world()
     const tools = (await client.listTools()).tools
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -52,6 +52,7 @@ describe('MCP endpoint', () => {
       'create_items',
       'create_project',
       'delete_item',
+      'edit_event',
       'get_board',
       'get_cell',
       'get_recent_changes',
@@ -243,5 +244,48 @@ describe('skill download', () => {
     expect(skill).toContain('`http://localhost:4000/mcp`')
     expect(skill).toContain('propose, confirm, then apply')
     expect(skill).not.toContain('{{')
+  })
+})
+
+describe('MCP cell details', () => {
+  it('sets details through apply_changes and fixes history with edit_event', async () => {
+    const { client } = await world()
+    const res = await call<{ results: { details: string[] }[] }>(client, 'apply_changes', {
+      project: 'clinic-os',
+      changes: [
+        {
+          item: 'Login',
+          stage: 'QA',
+          status: 'done',
+          happenedAt: '2026-10-05T00:00:00Z',
+          assignees: [{ name: 'Somchai (Jira)' }],
+          plannedEnd: '2026-10-04',
+          link: { title: 'PROJ-9', url: 'https://jira.example.com/browse/PROJ-9', kind: 'issue' },
+        },
+      ],
+    })
+    expect(res.results[0]!.details).toEqual(['assignees', 'planned', 'link'])
+    const cell = await call<{
+      events: { id: string }[]
+      assignees: { name: string }[]
+      links: { title: string }[]
+    }>(client, 'get_cell', {
+      project: 'clinic-os',
+      item: 'Login',
+      stage: 'QA',
+    })
+    expect(cell.assignees.map((a) => a.name)).toEqual(['Somchai (Jira)'])
+    expect(cell.links.map((l) => l.title)).toEqual(['PROJ-9'])
+    await call(client, 'edit_event', {
+      project: 'clinic-os',
+      eventId: cell.events[0]!.id,
+      delete: true,
+    })
+    const after = await call<{ status: string }>(client, 'get_cell', {
+      project: 'clinic-os',
+      item: 'Login',
+      stage: 'QA',
+    })
+    expect(after.status).toBe('todo')
   })
 })

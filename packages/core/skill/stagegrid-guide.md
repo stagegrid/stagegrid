@@ -43,6 +43,17 @@ If the result says `backdatedBeforeLaterEvent: true`, the change was saved to hi
 
 When moving a cell from `done` back to `doing` or `todo`, set `reason` (for example `"QA found a bug in email login"`).
 
+## Assignees, plans, notes, and links
+
+The same `apply_changes` call can also:
+
+- replace **assignees**: `[{ "userId": "…" }]` for Stagegrid users (project members), or `[{ "name": "Somchai (Jira)" }]` for people who aren't in Stagegrid;
+- set **plannedStart / plannedEnd** (`YYYY-MM-DD`, `null` clears) — a cell past its planned end and not done is flagged "needs update";
+- add a **comment** (markdown) — for context the user would want to see later;
+- add a **link** `{ "title": "PROJ-123", "url": "https://…", "kind": "issue" }` (`doc`, `design`, `issue`, `other`) — link documents with `kind: "doc"` so the board shows a document icon.
+
+To fix a status change that was recorded wrong, read its id with `get_cell` and call `edit_event` (move `happenedAt` or `delete: true`). Confirm with the user first.
+
 ## Building the tree
 
 - `create_items` takes a whole tree at once: `{ "items": [{ "name": "Settings", "children": [{ "name": "Users" }] }] }`. Use `parent` to add under an existing item.

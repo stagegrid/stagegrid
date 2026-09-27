@@ -1,9 +1,12 @@
 import {
   addMemberInput,
   changesInput,
+  commentInput,
   createItemsInput,
   createProjectInput,
   createStageInput,
+  editEventInput,
+  linkInput,
   moveItemInput,
   moveStageInput,
   renameItemInput,
@@ -15,7 +18,9 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import * as board from '../../services/board.service'
+import * as details from '../../services/cell-details.service'
 import { applyChanges } from '../../services/changes.service'
+import { editEvent } from '../../services/events.service'
 import { exportCsv, exportJson } from '../../services/export.service'
 import * as items from '../../services/items.service'
 import * as members from '../../services/members.service'
@@ -151,6 +156,50 @@ export const projectRoutes = new Hono<AppEnv>()
   .post('/projects/:ref/changes', async (c) =>
     c.json(await applyChanges(serviceCtx(c), c.req.param('ref'), await body(c, changesInput))),
   )
+  .patch('/projects/:ref/events/:id', async (c) =>
+    c.json(
+      await editEvent(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('id'),
+        await body(c, editEventInput),
+      ),
+    ),
+  )
+  .delete('/projects/:ref/events/:id', async (c) =>
+    c.json(await editEvent(serviceCtx(c), c.req.param('ref'), c.req.param('id'), { delete: true })),
+  )
+  .post('/projects/:ref/cells/:cellId/comments', async (c) => {
+    const { body: text } = await body(c, commentInput)
+    return c.json(
+      await details.addComment(serviceCtx(c), c.req.param('ref'), c.req.param('cellId'), text),
+      201,
+    )
+  })
+  .patch('/projects/:ref/comments/:id', async (c) => {
+    const { body: text } = await body(c, commentInput)
+    await details.updateComment(serviceCtx(c), c.req.param('ref'), c.req.param('id'), text)
+    return c.body(null, 204)
+  })
+  .delete('/projects/:ref/comments/:id', async (c) => {
+    await details.updateComment(serviceCtx(c), c.req.param('ref'), c.req.param('id'), null)
+    return c.body(null, 204)
+  })
+  .post('/projects/:ref/cells/:cellId/links', async (c) =>
+    c.json(
+      await details.addLink(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('cellId'),
+        await body(c, linkInput),
+      ),
+      201,
+    ),
+  )
+  .delete('/projects/:ref/links/:id', async (c) => {
+    await details.deleteLink(serviceCtx(c), c.req.param('ref'), c.req.param('id'))
+    return c.body(null, 204)
+  })
   .get('/projects/:ref/activity', async (c) => {
     const q = z
       .object({
