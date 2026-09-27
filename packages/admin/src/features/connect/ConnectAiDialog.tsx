@@ -84,6 +84,13 @@ export function ConnectAiDialog() {
             ))}
           </div>
           <div className="grid gap-1.5">
+            <h3 className="text-sm font-medium">claude.ai, ChatGPT, and other apps with sign-in</h3>
+            <p className="text-muted-foreground text-xs">
+              Add a custom connector with the MCP URL above — no token needed. You'll be asked to
+              sign in to Stagegrid and allow access.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
             <h3 className="text-sm font-medium">4. Teach it how Stagegrid works</h3>
             <p className="text-muted-foreground text-xs">
               MCP clients get the guide automatically. For Claude skills or other assistants,
