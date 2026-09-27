@@ -126,6 +126,15 @@ export interface ChangesResultDto {
   results: ChangeResultDto[]
 }
 
+export interface TokenDto {
+  id: string
+  name: string
+  prefix: string
+  lastUsedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+}
+
 export interface RealtimeEvent {
   type: string
   projectId: string
