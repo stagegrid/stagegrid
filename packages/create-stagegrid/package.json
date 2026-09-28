@@ -1,0 +1,27 @@
+{
+  "name": "create-stagegrid",
+  "version": "0.0.0",
+  "description": "Create a new Stagegrid instance",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-stagegrid": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node22 --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsup": "^8.5.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.2"
+  }
+}

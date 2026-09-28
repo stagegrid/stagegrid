@@ -1,0 +1,175 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+@import '@fontsource/noto-sans-thai/400.css';
+@import '@fontsource/noto-sans-thai/500.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Brand color: Cancer-zodiac sky blue (spec 03 §1). Every color is a CSS custom property —
+ * change the brand by editing --primary/--sidebar-primary/--ring (and their .dark twins) only.
+ * Components never use raw color values.
+ */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.62 0.12 230);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.95 0.03 230);
+  --accent-foreground: oklch(0.3 0.07 230);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.62 0.12 230);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.62 0.12 230);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.95 0.03 230);
+  --sidebar-accent-foreground: oklch(0.3 0.07 230);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.62 0.12 230);
+
+  /* Cell status (spec 03 §1) — separate from the brand hue on purpose */
+  --status-skip: oklch(0.8 0 0);
+  --status-todo: oklch(0.62 0.2 25);
+  --status-doing: oklch(0.82 0.16 85);
+  --status-done: oklch(0.66 0.15 150);
+  --status-stale: oklch(0.72 0.17 55);
+  --status-skip-foreground: oklch(0.25 0 0);
+  --status-todo-foreground: oklch(0.985 0 0);
+  --status-doing-foreground: oklch(0.25 0.05 85);
+  --status-done-foreground: oklch(0.2 0.05 150);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.8 0.1 225);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.3 0.05 230);
+  --accent-foreground: oklch(0.9 0.04 225);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.8 0.1 225);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.8 0.1 225);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.3 0.05 230);
+  --sidebar-accent-foreground: oklch(0.9 0.04 225);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.8 0.1 225);
+
+  --status-skip: oklch(0.4 0 0);
+  --status-todo: oklch(0.64 0.19 25);
+  --status-doing: oklch(0.8 0.15 85);
+  --status-done: oklch(0.7 0.15 150);
+  --status-stale: oklch(0.75 0.16 55);
+  --status-skip-foreground: oklch(0.9 0 0);
+  --status-todo-foreground: oklch(0.985 0 0);
+  --status-doing-foreground: oklch(0.25 0.05 85);
+  --status-done-foreground: oklch(0.2 0.05 150);
+}
+
+@theme inline {
+  --color-status-skip: var(--status-skip);
+  --color-status-todo: var(--status-todo);
+  --color-status-doing: var(--status-doing);
+  --color-status-done: var(--status-done);
+  --color-status-stale: var(--status-stale);
+  --color-status-skip-foreground: var(--status-skip-foreground);
+  --color-status-todo-foreground: var(--status-todo-foreground);
+  --color-status-doing-foreground: var(--status-doing-foreground);
+  --color-status-done-foreground: var(--status-done-foreground);
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', 'Noto Sans Thai', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /*
+   * Grid items default to min-width: auto, so one long unbroken line (a code snippet, an email,
+   * a select value) would stretch the whole grid — and the dialog or page around it — sideways.
+   */
+  .grid > *,
+  :is([data-slot='sheet-content'], [data-slot='popover-content']) > * {
+    min-width: 0;
+  }
+}

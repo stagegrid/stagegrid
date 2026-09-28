@@ -1,0 +1,9 @@
+{
+  "name": "stagegrid-dev-app",
+  "private": true,
+  "type": "module",
+  "description": "What create-stagegrid generates, wired to the workspace core. Used for local development.",
+  "dependencies": {
+    "@stagegrid/core": "workspace:*"
+  }
+}

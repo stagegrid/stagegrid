@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: stagegrid
+      POSTGRES_PASSWORD: stagegrid
+      POSTGRES_DB: stagegrid
+    ports:
+      - '54329:5432'
+    volumes:
+      - stagegrid-dev-db:/var/lib/postgresql/data
+volumes:
+  stagegrid-dev-db:

@@ -1,0 +1,51 @@
+{
+  "name": "@stagegrid/core",
+  "version": "0.0.0",
+  "description": "Stagegrid server: project progress board with MCP",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "stagegrid": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../examples/dev-app/.env src/cli/main.ts dev",
+    "build": "tsup && node scripts/copy-assets.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@node-rs/argon2": "^2.2.1",
+    "commander": "^15.0.0",
+    "drizzle-orm": "^0.45.3",
+    "fractional-indexing": "^4.0.0",
+    "hono": "^4.13.9",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "postgres": "^3.4.9",
+    "uuidv7": "^1.2.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "drizzle-kit": "^0.31.11",
+    "tsup": "^8.5.1",
+    "@stagegrid/shared": "workspace:*"
+  }
+}
