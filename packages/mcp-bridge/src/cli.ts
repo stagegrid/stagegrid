@@ -7,13 +7,31 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { createBridge } from './bridge'
 
-const { values } = parseArgs({ options: { url: { type: 'string' }, token: { type: 'string' } } })
+const USAGE = `Usage: npx -y @stagegrid/mcp --url https://pm.example.com/mcp --token sg_pat_…
+   or: STAGEGRID_URL=… STAGEGRID_TOKEN=… npx -y @stagegrid/mcp`
+
+let values
+try {
+  ;({ values } = parseArgs({
+    options: {
+      url: { type: 'string' },
+      token: { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+  }))
+} catch (e) {
+  console.error(`${(e as Error).message}\n\n${USAGE}`)
+  process.exit(1)
+}
+if (values.help) {
+  console.log(USAGE)
+  process.exit(0)
+}
 const url = values.url ?? process.env.STAGEGRID_URL
 const token = values.token ?? process.env.STAGEGRID_TOKEN
 
 if (!url || !token) {
-  console.error('Usage: npx -y @stagegrid/mcp --url https://pm.example.com/mcp --token sg_pat_…')
-  console.error('   or: STAGEGRID_URL=… STAGEGRID_TOKEN=… npx -y @stagegrid/mcp')
+  console.error(USAGE)
   process.exit(1)
 }
 

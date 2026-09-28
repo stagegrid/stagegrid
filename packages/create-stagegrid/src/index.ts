@@ -1,24 +1,50 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { basename, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 
 import { scaffoldFiles } from './files'
 
-const CORE_VERSION = process.env.STAGEGRID_CORE_VERSION ?? '0.1.0'
+// create-stagegrid is released in lockstep with @stagegrid/core (changesets "fixed" group),
+// so its own version is the core version new projects should depend on.
+const CORE_VERSION =
+  process.env.STAGEGRID_CORE_VERSION ??
+  (createRequire(import.meta.url)('../package.json') as { version: string }).version
+
+const USAGE = `Usage: npx create-stagegrid [folder] [options]
+
+Options:
+  --db <docker|url>   Postgres in Docker (default) or an existing database
+  --db-url <url>      Connection string for an existing database (implies --db url)
+  --pm <name>         Package manager to install with (default: the one running this)
+  --skip-install      Only write the files
+  -h, --help          Show this help`
 
 async function main(): Promise<void> {
-  const { values, positionals } = parseArgs({
-    allowPositionals: true,
-    options: {
-      db: { type: 'string' },
-      'db-url': { type: 'string' },
-      'skip-install': { type: 'boolean', default: false },
-      pm: { type: 'string' },
-    },
-  })
+  let parsed
+  try {
+    parsed = parseArgs({
+      allowPositionals: true,
+      options: {
+        db: { type: 'string' },
+        'db-url': { type: 'string' },
+        'skip-install': { type: 'boolean', default: false },
+        pm: { type: 'string' },
+        help: { type: 'boolean', short: 'h', default: false },
+      },
+    })
+  } catch (e) {
+    console.error(`${(e as Error).message}\n\n${USAGE}`)
+    process.exit(1)
+  }
+  const { values, positionals } = parsed
+  if (values.help) {
+    console.log(USAGE)
+    return
+  }
   const rl = createInterface({ input: process.stdin, output: process.stdout })
   const ask = async (q: string, fallback: string) =>
     process.stdin.isTTY ? (await rl.question(`${q} (${fallback}) `)).trim() || fallback : fallback

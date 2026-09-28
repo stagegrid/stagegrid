@@ -3,6 +3,13 @@
   "version": "0.0.0",
   "description": "Create a new Stagegrid instance",
   "license": "MIT",
+  "homepage": "https://github.com/stagegrid/stagegrid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stagegrid/stagegrid.git",
+    "directory": "packages/create-stagegrid"
+  },
+  "bugs": "https://github.com/stagegrid/stagegrid/issues",
   "type": "module",
   "bin": {
     "create-stagegrid": "./dist/index.js"
