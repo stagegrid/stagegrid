@@ -90,3 +90,22 @@ describe('projects API', () => {
     ).toBe(2)
   })
 })
+
+describe('timeline API', () => {
+  it('serves timeline and burn-up', async () => {
+    const { b } = await signedInAdmin()
+    await b.post('/api/v1/projects', { name: 'Pilot' })
+    await b.post('/api/v1/projects/pilot/items', { items: [{ name: 'Login' }] })
+    await b.post('/api/v1/projects/pilot/changes', {
+      changes: [{ item: 'Login', stage: 'QA', status: 'doing' }],
+    })
+    const t = (await (await b.get('/api/v1/projects/pilot/timeline')).json()) as {
+      items: { lanes: unknown[] }[]
+    }
+    expect(t.items[0]!.lanes).toHaveLength(1)
+    const burnup = (await (await b.get('/api/v1/projects/pilot/burnup')).json()) as {
+      points: { scope: number }[]
+    }
+    expect(burnup.points.at(-1)).toMatchObject({ scope: 6 })
+  })
+})

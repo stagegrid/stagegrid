@@ -1,6 +1,8 @@
 import type { BoardDto } from '@stagegrid/shared'
 
 import { ProgressBar } from '@/components/progress-bar'
+import { BurnupSparkline } from '@/features/timeline/BurnupChart'
+import { useBurnup } from '@/features/timeline/queries'
 import { cn } from '@/lib/utils'
 
 function Ring({ percent }: { percent: number }) {
@@ -24,6 +26,17 @@ function Ring({ percent }: { percent: number }) {
         {percent}%
       </text>
     </svg>
+  )
+}
+
+function Burnup({ slug }: { slug: string }) {
+  const { data } = useBurnup(slug)
+  if (!data || data.points.length < 2) return null
+  return (
+    <div className="grid gap-1">
+      <h2 className="text-muted-foreground text-xs font-medium uppercase">Burn-up</h2>
+      <BurnupSparkline data={data} />
+    </div>
   )
 }
 
@@ -74,6 +87,7 @@ export function SummaryPanel({
           )
         })}
       </div>
+      <Burnup slug={board.project.slug} />
       <div className="flex gap-4 text-xs">
         <button
           type="button"

@@ -172,3 +172,37 @@ export interface RealtimeEvent {
   at: string
   [key: string]: unknown
 }
+
+export interface TimelineLaneDto {
+  cellId: string
+  stageId: string
+  status: CellStatus
+  plannedStart: string | null
+  plannedEnd: string | null
+  /** Past planned end and not done/skip. */
+  overdue: boolean
+  rounds: CellRoundDto[]
+}
+
+export interface TimelineItemDto {
+  id: string
+  parentId: string | null
+  name: string
+  depth: number
+  lanes: TimelineLaneDto[]
+}
+
+export interface TimelineDto {
+  project: { slug: string; name: string; timezone: string; role: ProjectRole }
+  /** "Today" in the project's time zone (YYYY-MM-DD). */
+  today: string
+  /** Earliest and latest dates with data (defaults to today). */
+  from: string
+  to: string
+  stages: { id: string; name: string }[]
+  items: TimelineItemDto[]
+}
+
+export interface BurnupDto {
+  points: { date: string; scope: number; done: number }[]
+}

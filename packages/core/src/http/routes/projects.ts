@@ -26,6 +26,7 @@ import * as items from '../../services/items.service'
 import * as members from '../../services/members.service'
 import * as projects from '../../services/projects.service'
 import * as stages from '../../services/stages.service'
+import { getBurnup, getTimeline } from '../../services/timeline.service'
 import { body, serviceCtx } from '../context'
 import type { AppEnv } from '../env'
 
@@ -146,6 +147,12 @@ export const projectRoutes = new Hono<AppEnv>()
   // board & cells
   .get('/projects/:ref/board', async (c) =>
     c.json(await board.getBoard(serviceCtx(c), c.req.param('ref'))),
+  )
+  .get('/projects/:ref/timeline', async (c) =>
+    c.json(await getTimeline(serviceCtx(c), c.req.param('ref'))),
+  )
+  .get('/projects/:ref/burnup', async (c) =>
+    c.json(await getBurnup(serviceCtx(c), c.req.param('ref'))),
   )
   .get('/projects/:ref/summary', async (c) =>
     c.json(await board.getSummary(serviceCtx(c), c.req.param('ref'))),

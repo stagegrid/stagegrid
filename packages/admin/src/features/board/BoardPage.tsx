@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 
 import { ErrorState } from '@/components/page-state'
+import { ProjectTabs } from '@/components/project-tabs'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -110,6 +111,7 @@ export function BoardPage({
         </Button>
         <h1 className="truncate text-base font-semibold">{board.project.name}</h1>
         <span className="text-muted-foreground text-xs">Items: {board.stats.items}</span>
+        {!present && <ProjectTabs slug={slug} />}
         {!connected && (
           <span className="text-muted-foreground flex items-center gap-1 text-xs">
             <WifiOffIcon className="size-3.5" />
