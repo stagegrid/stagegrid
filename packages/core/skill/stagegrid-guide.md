@@ -87,3 +87,7 @@ A **release** is a go-live with a target date, phases (for example Dev, SIT, UAT
 - `kind: "change"` — an existing item modified in this release; give the `stages` to redo. Those cells are reopened (to `todo`) if they were done, with reason "Release <name>".
 
 Use `list_releases` / `get_release` to answer "what goes live on <date>?" and "are we on track?" (risks are computed: work planned after the target or after the freeze phase starts, or not started close to it). Preview `add_release_items` with `dryRun: true` when it will reopen cells. `mark_release_released` (owners) snapshots the scope — ask the user first.
+
+## Documents
+
+Stagegrid can hold documents written from templates (BRD, SRS, minutes, release notes, change requests, UAT sign-off, test summary, and the organisation's own). Use the `write-document` prompt for the full procedure: `list_doc_templates` → `get_doc_template` → gather context → ask only what's missing → `save_doc_draft` → share `viewUrl` and `get_doc_download_url`. Stagegrid renders Word, Markdown, print/PDF, and Confluence storage format the same way every time — never rewrite rendered output.

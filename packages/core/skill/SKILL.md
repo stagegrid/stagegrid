@@ -10,3 +10,7 @@ Stagegrid MCP server: `{{APP_URL}}/mcp` (Bearer token from Stagegrid → Profile
 ## Syncing from another tracker
 
 {{SYNC}}
+
+## Writing documents
+
+{{WRITE}}

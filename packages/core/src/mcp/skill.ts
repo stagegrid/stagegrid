@@ -10,7 +10,7 @@ function skillDir(): string {
   throw new Error('Stagegrid skill files not found')
 }
 
-let cache: { guide: string; sync: string; skill: string } | null = null
+let cache: { guide: string; sync: string; skill: string; write: string } | null = null
 
 function files() {
   if (!cache) {
@@ -19,6 +19,7 @@ function files() {
       guide: readFileSync(`${dir}/stagegrid-guide.md`, 'utf8'),
       sync: readFileSync(`${dir}/sync-from-tracker.md`, 'utf8'),
       skill: readFileSync(`${dir}/SKILL.md`, 'utf8'),
+      write: readFileSync(`${dir}/write-document.md`, 'utf8'),
     }
   }
   return cache
@@ -27,6 +28,9 @@ function files() {
 export const guideText = (): string => files().guide
 
 export const syncText = (source: string): string => files().sync.replaceAll('{{source}}', source)
+
+export const writeDocumentText = (template: string): string =>
+  files().write.replaceAll('{{template}}', template)
 
 /** Claude skill (SKILL.md) with the instance URL and the shared guide inlined. */
 export function skillMarkdown(appUrl: string): string {
@@ -37,5 +41,9 @@ export function skillMarkdown(appUrl: string): string {
     .replace(
       '{{SYNC}}',
       f.sync.replace(/^# .*\n/, '').replaceAll('{{source}}', 'the other tracker'),
+    )
+    .replace(
+      '{{WRITE}}',
+      f.write.replace(/^# .*\n/, '').replaceAll('{{template}}', 'the document the user asked for'),
     )
 }
