@@ -2,7 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
 import type { ServiceContext } from '../services/context'
-import { guideText, syncText } from './skill'
+import { guideText, syncText, writeDocumentText } from './skill'
+import { registerDocTools } from './tools/docs'
 import { registerReadTools } from './tools/read'
 import { registerReleaseTools } from './tools/releases'
 import { registerWriteTools } from './tools/write'
@@ -18,6 +19,7 @@ export function createMcpServer(ctx: ServiceContext): McpServer {
   registerReadTools(server, ctx)
   registerWriteTools(server, ctx)
   registerReleaseTools(server, ctx)
+  registerDocTools(server, ctx)
 
   server.registerResource(
     'guide',
@@ -45,6 +47,17 @@ export function createMcpServer(ctx: ServiceContext): McpServer {
     },
     ({ source }) => ({
       messages: [{ role: 'user', content: { type: 'text', text: syncText(source) } }],
+    }),
+  )
+  server.registerPrompt(
+    'write-document',
+    {
+      title: 'Write a document',
+      description: 'Write a BRD, SRS, release notes… from a template with project context',
+      argsSchema: { template: z.string().describe('e.g. "srs" or "release notes"') },
+    },
+    ({ template }) => ({
+      messages: [{ role: 'user', content: { type: 'text', text: writeDocumentText(template) } }],
     }),
   )
   return server

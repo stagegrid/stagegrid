@@ -33,6 +33,12 @@ npx -y @stagegrid/mcp --url https://pm.example.com/mcp --token sg_pat_…
 
 The server ships its own guide as MCP prompts/resources, and **Download AI skill** gives a Claude skill plus a plain guide for other assistants.
 
+## Documents
+
+Ask your AI to "write a BRD for this project" or "draft release notes for v1.2": it fills a template with the project's data and saves a draft you can read and edit in **Docs**. Every save is a new version. Download Word (.docx), Markdown, or Print / PDF, or copy the Confluence storage format. Or skip all of that: a cell can simply link to a document you wrote elsewhere.
+
+Admins manage templates in **Document templates**: seven built-ins (BRD, SRS, minutes of meeting, release notes, change request, UAT sign-off, test summary) plus your own. Upload your company's .docx as a template's Word base to get its styles, header, footer, and cover page. Put `{{content}}` alone in the paragraph where the body goes, and `{{title}}`, `{{project}}`, `{{version}}`, `{{date}}`, or `{{author}}` anywhere else. Project owners choose which templates a project uses in Settings → Documents.
+
 ## Configuration
 
 | Variable           | Required | Default   |                                           |

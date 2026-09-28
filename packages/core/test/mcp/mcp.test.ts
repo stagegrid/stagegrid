@@ -57,9 +57,14 @@ describe('MCP endpoint', () => {
       'edit_event',
       'get_board',
       'get_cell',
+      'get_doc_download_url',
+      'get_doc_template',
+      'get_document',
       'get_recent_changes',
       'get_release',
       'get_summary',
+      'list_doc_templates',
+      'list_documents',
       'list_projects',
       'list_releases',
       'list_stale_cells',
@@ -67,13 +72,15 @@ describe('MCP endpoint', () => {
       'mark_release_released',
       'move_item',
       'remove_release_items',
+      'render_doc',
+      'save_doc_draft',
       'update_item',
       'update_release',
     ])
     expect(tools.find((t) => t.name === 'get_board')?.annotations?.readOnlyHint).toBe(true)
     expect(tools.find((t) => t.name === 'delete_item')?.annotations?.destructiveHint).toBe(true)
     const prompts = (await client.listPrompts()).prompts.map((p) => p.name).sort()
-    expect(prompts).toEqual(['stagegrid-guide', 'sync-from-tracker'])
+    expect(prompts).toEqual(['stagegrid-guide', 'sync-from-tracker', 'write-document'])
     const sync = await client.getPrompt({
       name: 'sync-from-tracker',
       arguments: { source: 'Jira project ABC' },

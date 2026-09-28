@@ -1,0 +1,61 @@
+{
+  "key": "test-summary",
+  "name": "Test summary report",
+  "level": "release",
+  "schema": {
+    "kind": "narrative",
+    "sections": [
+      {
+        "id": "1",
+        "title": "Overview",
+        "level": 1,
+        "hint": "What was tested, when, and the overall result."
+      },
+      {
+        "id": "2",
+        "title": "Test scope",
+        "level": 1,
+        "hint": "Lead-in: one subsection per item in the release."
+      },
+      {
+        "id": "2.1",
+        "title": "Item",
+        "level": 2,
+        "hint": "What was tested for this item and the outcome, using the QA/SIT/UAT stage statuses.",
+        "repeat": {
+          "source": "release_items"
+        }
+      },
+      {
+        "id": "3",
+        "title": "Test phases and schedule",
+        "level": 1,
+        "hint": "The release phases (e.g. SIT, UAT) with planned and actual dates."
+      },
+      {
+        "id": "4",
+        "title": "Results summary",
+        "level": 1,
+        "hint": "Counts of passed/failed items and cells, as a table."
+      },
+      {
+        "id": "5",
+        "title": "Rework and defects summary",
+        "level": 1,
+        "hint": "Items that were reopened (rework) and why, from cell history and comments."
+      },
+      {
+        "id": "6",
+        "title": "Open issues",
+        "level": 1,
+        "hint": "What remains open and its impact."
+      },
+      {
+        "id": "7",
+        "title": "Recommendation",
+        "level": 1,
+        "hint": "Go / no-go recommendation with reasons."
+      }
+    ]
+  }
+}

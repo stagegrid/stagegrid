@@ -9,7 +9,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   // workspace-private package, bundled into the published output
-  noExternal: ['@stagegrid/shared'],
+  noExternal: ['@stagegrid/shared', '@stagegrid/docs'],
   banner: {
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
   },

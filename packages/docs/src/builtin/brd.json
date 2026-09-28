@@ -1,0 +1,92 @@
+{
+  "key": "brd",
+  "name": "Business Requirements Document (BRD)",
+  "level": "project",
+  "schema": {
+    "kind": "narrative",
+    "sections": [
+      {
+        "id": "1",
+        "title": "Executive summary",
+        "level": 1,
+        "hint": "In one or two paragraphs: the business problem, the proposed solution, and the expected outcome."
+      },
+      {
+        "id": "2",
+        "title": "Background and problem",
+        "level": 1,
+        "hint": "How things work today, what goes wrong, who is affected, and what it costs."
+      },
+      {
+        "id": "3",
+        "title": "Business objectives",
+        "level": 1,
+        "hint": "Measurable goals the project must achieve, as a bulleted list."
+      },
+      {
+        "id": "4",
+        "title": "Scope",
+        "level": 1,
+        "hint": "Lead-in for the scope subsections."
+      },
+      {
+        "id": "4.1",
+        "title": "In scope",
+        "level": 2,
+        "hint": "What this project delivers, as a bulleted list. Use the project's top-level items."
+      },
+      {
+        "id": "4.2",
+        "title": "Out of scope",
+        "level": 2,
+        "hint": "What this project explicitly does not deliver."
+      },
+      {
+        "id": "5",
+        "title": "Stakeholders",
+        "level": 1,
+        "hint": "A table of stakeholders: name or role, interest, and responsibility."
+      },
+      {
+        "id": "6",
+        "title": "Business requirements",
+        "level": 1,
+        "hint": "Lead-in: how requirements are organised (one subsection per top-level item)."
+      },
+      {
+        "id": "6.1",
+        "title": "Requirement",
+        "level": 2,
+        "hint": "What the business needs from this part of the system, why, and how success is recognised. Numbered list of requirements.",
+        "repeat": {
+          "source": "items",
+          "depth": 1
+        }
+      },
+      {
+        "id": "7",
+        "title": "Assumptions and constraints",
+        "level": 1,
+        "hint": "Assumptions that, if wrong, change the plan; constraints such as budget, deadlines, regulations, technology."
+      },
+      {
+        "id": "8",
+        "title": "Success metrics",
+        "level": 1,
+        "hint": "How the objectives will be measured after go-live, with target values."
+      },
+      {
+        "id": "9",
+        "title": "Milestones",
+        "level": 1,
+        "hint": "Key dates (from releases and plans if known) as a table: milestone, date, notes."
+      },
+      {
+        "id": "10",
+        "title": "Approval",
+        "level": 1,
+        "hint": "Who must approve this document; leave space for names, roles, and dates."
+      }
+    ]
+  }
+}

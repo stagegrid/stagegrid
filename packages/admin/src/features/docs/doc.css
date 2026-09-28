@@ -1,0 +1,85 @@
+/* Typography for rendered documents (preview and print). The HTML comes from @stagegrid/docs and is fully escaped. */
+.doc-body {
+  line-height: 1.6;
+}
+.doc-body h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+.doc-body .doc-meta {
+  color: var(--muted-foreground);
+  margin-bottom: 1.5rem;
+}
+.doc-body h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.5rem;
+}
+.doc-body h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.4rem;
+}
+.doc-body h4 {
+  font-weight: 600;
+  margin: 1rem 0 0.3rem;
+}
+.doc-body p {
+  margin: 0.4rem 0;
+}
+.doc-body ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.doc-body ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.doc-body table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  width: 100%;
+}
+.doc-body th,
+.doc-body td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+.doc-body th {
+  background: var(--muted);
+  font-weight: 600;
+}
+.doc-body a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.doc-body code {
+  background: var(--muted);
+  border-radius: 3px;
+  padding: 0 0.2rem;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 2.54cm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .doc-body {
+    color: black;
+    font-family: 'Sarabun', 'Geist Variable', sans-serif;
+    font-size: 11pt;
+  }
+  .doc-body h2,
+  .doc-body h3 {
+    break-after: avoid;
+  }
+  .doc-body table {
+    break-inside: avoid;
+  }
+}

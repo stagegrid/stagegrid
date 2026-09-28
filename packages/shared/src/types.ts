@@ -285,3 +285,53 @@ export interface ReleaseSnapshot {
     cells: { stage: string; status: CellStatus }[]
   }[]
 }
+
+export type DocTemplateLevel = 'project' | 'item' | 'release'
+
+export interface DocTemplateDto {
+  id: string
+  key: string
+  name: string
+  kind: 'narrative' | 'form'
+  level: DocTemplateLevel
+  builtin: boolean
+  archived: boolean
+  hasBaseDocx: boolean
+  sectionCount: number
+}
+
+export interface DocumentSummaryDto {
+  id: string
+  title: string
+  template: { id: string; key: string; name: string }
+  item: { id: string; path: string } | null
+  stage: { id: string; name: string } | null
+  release: { id: string; name: string } | null
+  version: number
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface DocumentDto extends DocumentSummaryDto {
+  /** Template as it was when the document was created (spec 02 §5). */
+  template: DocumentSummaryDto['template'] & { kind: 'narrative' | 'form' }
+  /** Sections and fields resolved against the project (repeat sections expanded). */
+  resolved: {
+    kind: 'narrative' | 'form'
+    sections: { id: string; number: string | null; title: string; level: 1 | 2 | 3; hint: string }[]
+    fields: {
+      id: string
+      label: string
+      hint: string
+      type: 'text' | 'longtext' | 'date' | 'list' | 'table'
+      columns?: { id: string; label: string }[]
+    }[]
+  }
+  draft: {
+    sections?: Record<string, string>
+    fields?: Record<string, string | string[] | Record<string, string>[]>
+  }
+  revisions: { version: number; createdAt: string; by: string }[]
+  project: { slug: string; name: string; timezone: string; role: ProjectRole }
+  viewUrl: string
+}

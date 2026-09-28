@@ -1,0 +1,84 @@
+{
+  "key": "mom",
+  "name": "Minutes of meeting (MOM)",
+  "level": "project",
+  "schema": {
+    "kind": "form",
+    "fields": [
+      {
+        "id": "title",
+        "label": "Meeting",
+        "type": "text",
+        "hint": "What the meeting was about."
+      },
+      {
+        "id": "date",
+        "label": "Date",
+        "type": "date",
+        "hint": "YYYY-MM-DD."
+      },
+      {
+        "id": "time",
+        "label": "Time",
+        "type": "text",
+        "hint": "Start and end time."
+      },
+      {
+        "id": "location",
+        "label": "Location",
+        "type": "text",
+        "hint": "Room or meeting link."
+      },
+      {
+        "id": "attendees",
+        "label": "Attendees",
+        "type": "list",
+        "hint": "One person per entry, with role if useful."
+      },
+      {
+        "id": "agenda",
+        "label": "Agenda",
+        "type": "list",
+        "hint": "Topics in order."
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion",
+        "type": "longtext",
+        "hint": "Key points per agenda item, in markdown."
+      },
+      {
+        "id": "decisions",
+        "label": "Decisions",
+        "type": "list",
+        "hint": "What was decided."
+      },
+      {
+        "id": "action_items",
+        "label": "Action items",
+        "type": "table",
+        "hint": "Who does what by when.",
+        "columns": [
+          {
+            "id": "task",
+            "label": "Task"
+          },
+          {
+            "id": "owner",
+            "label": "Owner"
+          },
+          {
+            "id": "due",
+            "label": "Due"
+          }
+        ]
+      },
+      {
+        "id": "next_meeting",
+        "label": "Next meeting",
+        "type": "text",
+        "hint": "Date and time, if set."
+      }
+    ]
+  }
+}
