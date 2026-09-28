@@ -1,6 +1,6 @@
 {
   "name": "@stagegrid/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Stagegrid server: project progress board with MCP",
   "license": "MIT",
   "homepage": "https://github.com/stagegrid/stagegrid#readme",

@@ -1,6 +1,6 @@
 {
   "name": "create-stagegrid",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Create a new Stagegrid instance",
   "license": "MIT",
   "homepage": "https://github.com/stagegrid/stagegrid#readme",
