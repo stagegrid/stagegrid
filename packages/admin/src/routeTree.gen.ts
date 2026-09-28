@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
+import { Route as AppAdminTemplatesRouteImport } from './routes/_app.admin.templates'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as PrintSlugDocIdRouteImport } from './routes/print.$slug.$docId'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
@@ -64,6 +65,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppProjectsRoute = AppProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTemplatesRoute = AppAdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/projects': typeof AppProjectsRoute
+  '/_app/admin/templates': typeof AppAdminTemplatesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/profile'
     | '/projects'
+    | '/admin/templates'
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/profile'
     | '/projects'
+    | '/admin/templates'
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/profile'
     | '/_app/projects'
+    | '/_app/admin/templates'
     | '/_app/admin/users'
     | '/print/$slug/$docId'
     | '/_app/p/$slug/settings'
@@ -295,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/templates': {
+      id: '/_app/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AppAdminTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/users': {
       id: '/_app/admin/users'
       path: '/admin/users'
@@ -364,6 +383,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
   AppProjectsRoute: typeof AppProjectsRoute
+  AppAdminTemplatesRoute: typeof AppAdminTemplatesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
   AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
@@ -377,6 +397,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
   AppProjectsRoute: AppProjectsRoute,
+  AppAdminTemplatesRoute: AppAdminTemplatesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
   AppPSlugTimelineRoute: AppPSlugTimelineRoute,

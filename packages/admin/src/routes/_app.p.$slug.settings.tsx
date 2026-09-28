@@ -4,6 +4,7 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { ErrorState, PageHeader } from '@/components/page-state'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DocumentsSection } from '@/features/settings/DocumentsSection'
 import { GeneralSection } from '@/features/settings/GeneralSection'
 import { MembersSection } from '@/features/settings/MembersSection'
 import { useProject } from '@/features/settings/queries'
@@ -36,6 +37,7 @@ export const Route = createFileRoute('/_app/p/$slug/settings')({
           <StagesSection slug={project.slug} readOnly={readOnly} />
           <MembersSection slug={project.slug} readOnly={readOnly} />
           <ReleasePhasesSection project={project} readOnly={readOnly} />
+          <DocumentsSection slug={project.slug} readOnly={readOnly} />
           <section className="grid gap-2">
             <h2 className="text-base font-semibold">Export</h2>
             <div className="flex gap-2">

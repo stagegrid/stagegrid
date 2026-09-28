@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { FolderKanbanIcon, LayoutGridIcon, UsersIcon } from 'lucide-react'
+import { FileTextIcon, FolderKanbanIcon, LayoutGridIcon, UsersIcon } from 'lucide-react'
 import type * as React from 'react'
 
 import { NavUser } from '@/components/nav-user'
@@ -83,6 +83,14 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
                     <Link to="/admin/users" activeProps={{ 'data-active': true }}>
                       <UsersIcon />
                       <span>Users</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/admin/templates" activeProps={{ 'data-active': true }}>
+                      <FileTextIcon />
+                      <span>Document templates</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
