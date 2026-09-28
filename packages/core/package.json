@@ -3,6 +3,13 @@
   "version": "0.0.0",
   "description": "Stagegrid server: project progress board with MCP",
   "license": "MIT",
+  "homepage": "https://github.com/stagegrid/stagegrid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stagegrid/stagegrid.git",
+    "directory": "packages/core"
+  },
+  "bugs": "https://github.com/stagegrid/stagegrid/issues",
   "type": "module",
   "bin": {
     "stagegrid": "./dist/cli.js"
