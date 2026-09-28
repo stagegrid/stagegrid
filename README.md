@@ -29,6 +29,8 @@ In Stagegrid, click **Connect AI**: it shows the MCP URL (`<APP_URL>/mcp`), crea
 npx -y @stagegrid/mcp --url https://pm.example.com/mcp --token sg_pat_…
 ```
 
+**claude.ai, ChatGPT, and other apps with sign-in:** add a custom connector with `<APP_URL>/mcp`. Stagegrid supports OAuth 2.1 (dynamic client registration + PKCE): you'll sign in and click Allow; manage connections in Profile → Connected apps. `APP_URL` must be the public https URL.
+
 The server ships its own guide as MCP prompts/resources, and **Download AI skill** gives a Claude skill plus a plain guide for other assistants.
 
 ## Configuration

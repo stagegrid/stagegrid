@@ -23,6 +23,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: API, changeOrigin: false },
       '/mcp': { target: API, changeOrigin: false },
+      '/oauth': { target: API, changeOrigin: false },
       '/.well-known': { target: API, changeOrigin: false },
       '/healthz': { target: API, changeOrigin: false },
     },

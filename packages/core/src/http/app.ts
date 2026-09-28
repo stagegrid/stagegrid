@@ -14,6 +14,7 @@ import { requestId, requestLog, securityHeaders, withDeps } from './middleware/c
 import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
 import { mcpRoutes } from './routes/mcp'
+import { oauthApiRoutes, oauthRoutes } from './routes/oauth'
 import { projectRoutes } from './routes/projects'
 import { releaseRoutes } from './routes/releases'
 import { skillRoutes } from './routes/skill'
@@ -39,6 +40,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     }),
   )
   app.route('/', mcpRoutes)
+  app.use(
+    '/oauth/*',
+    bodyLimit({
+      maxSize: 64 * 1024,
+      onError: (c) => errorResponse(c, 'payload_too_large', 'Request body is too large'),
+    }),
+  )
+  app.route('/', oauthRoutes)
 
   const api = new Hono<AppEnv>()
   api.use(
@@ -55,6 +64,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', releaseRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)
+  api.route('/', oauthApiRoutes)
   api.all('*', (c) => errorResponse(c, 'not_found', 'Not found'))
   app.route('/api/v1', api)
 

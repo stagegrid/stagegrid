@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AcceptRouteImport } from './routes/accept'
+import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -35,6 +36,11 @@ const AppRoute = AppRouteImport.update({
 const AcceptRoute = AcceptRouteImport.update({
   id: '/accept',
   path: '/accept',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorizeRoute = AuthorizeRouteImport.update({
+  id: '/authorize',
+  path: '/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -92,6 +98,7 @@ const AppPSlugReleasesReleaseIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept': typeof AcceptRoute
+  '/authorize': typeof AuthorizeRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept': typeof AcceptRoute
+  '/authorize': typeof AuthorizeRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/accept': typeof AcceptRoute
+  '/authorize': typeof AuthorizeRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/profile': typeof AppProfileRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept'
+    | '/authorize'
     | '/login'
     | '/setup'
     | '/profile'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept'
+    | '/authorize'
     | '/login'
     | '/setup'
     | '/profile'
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/accept'
+    | '/authorize'
     | '/login'
     | '/setup'
     | '/_app/profile'
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AcceptRoute: typeof AcceptRoute
+  AuthorizeRoute: typeof AuthorizeRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
 }
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/accept'
       fullPath: '/accept'
       preLoaderRoute: typeof AcceptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authorize': {
+      id: '/authorize'
+      path: '/authorize'
+      fullPath: '/authorize'
+      preLoaderRoute: typeof AuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -311,6 +331,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AcceptRoute: AcceptRoute,
+  AuthorizeRoute: AuthorizeRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
 }
