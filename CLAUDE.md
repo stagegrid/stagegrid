@@ -13,7 +13,7 @@
 
 ## Rules
 
-- **Business logic lives in `packages/core/src/services`.** Routes (`src/http/routes`) and MCP tools only parse input (zod from `@stagegrid/shared`) and call a service. Permission checks happen in services via `requireProjectRole` / `requireAdmin`, never in routes.
+- **Business logic lives in `packages/core/src/services`.** Routes (`src/http/routes`) and MCP tools (`src/mcp/tools`) only parse input (zod from `@stagegrid/shared`) and call a service. Permission checks happen in services via `requireProjectRole` / `requireAdmin`, never in routes.
 - **`src/domain` is pure** (no DB, no HTTP) and fully unit-tested. `services` must not import `http`.
 - Every mutation: runs in `withTx`, writes `audit()`, and calls `notify()` for realtime. `notify` inside the transaction means rollbacks (and dry runs) never emit events.
 - Dates shown to users or used as day boundaries go through `zonedDate()` with the project's time zone. Never `toISOString().slice(0, 10)` for "today".

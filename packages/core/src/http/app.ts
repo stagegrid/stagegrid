@@ -13,7 +13,9 @@ import { authMiddleware } from './middleware/auth'
 import { requestId, requestLog, securityHeaders, withDeps } from './middleware/common'
 import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
+import { mcpRoutes } from './routes/mcp'
 import { projectRoutes } from './routes/projects'
+import { skillRoutes } from './routes/skill'
 import { streamRoutes } from './routes/stream'
 import { userRoutes } from './routes/users'
 
@@ -28,6 +30,15 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     (await ping(deps.database.db)) ? c.json({ ok: true }) : c.json({ ok: false }, 503),
   )
 
+  app.use(
+    '/mcp',
+    bodyLimit({
+      maxSize: 1 * MB,
+      onError: (c) => errorResponse(c, 'payload_too_large', 'Request body is too large'),
+    }),
+  )
+  app.route('/', mcpRoutes)
+
   const api = new Hono<AppEnv>()
   api.use(
     '*',
@@ -41,6 +52,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', userRoutes)
   api.route('/', projectRoutes)
   api.route('/', streamRoutes)
+  api.route('/', skillRoutes)
   api.all('*', (c) => errorResponse(c, 'not_found', 'Not found'))
   app.route('/api/v1', api)
 

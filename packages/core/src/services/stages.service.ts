@@ -4,12 +4,14 @@ import { generateKeyBetween } from 'fractional-indexing'
 
 import type { DbOrTx } from '../db/client'
 import { stages } from '../db/schema'
+import { resolveByName } from '../domain/refs'
 import { conflict, invalid, notFound } from '../errors'
 import { newId } from '../lib/ids'
 import { notify } from '../realtime/notify'
 import { requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
+import { refError } from './refs'
 import { ensureCells, loadItems, loadStages, type StageRow } from './structure'
 
 export function toStageDto(s: StageRow): StageDto {
@@ -200,5 +202,49 @@ export async function setStageArchived(
     })
     await notify(tx, txCtx, project.id, 'stage.changed')
     return toStageDto(updated!)
+  })
+}
+
+export type StageOp =
+  | { op: 'add'; name: string; after?: string }
+  | { op: 'rename'; stage: string; name: string }
+  | { op: 'move'; stage: string; before?: string; after?: string }
+  | { op: 'archive'; stage: string }
+  | { op: 'restore'; stage: string }
+
+/** Applies several stage operations in one transaction; stages are referenced by name or id. */
+export async function manageStages(
+  ctx: ServiceContext,
+  ref: string,
+  ops: StageOp[],
+): Promise<StageDto[]> {
+  const { project } = await requireProjectRole(ctx, ref, 'owner')
+  return withTx(ctx, async (_tx, txCtx) => {
+    const resolve = async (stageRef: string, includeArchived = false) => {
+      const all = await loadStages(txCtx.db, project.id, { includeArchived })
+      const r = resolveByName(all, stageRef)
+      if (!r.ok) throw refError('stage', stageRef, r)
+      return r.id
+    }
+    for (const op of ops) {
+      if (op.op === 'add') {
+        await createStage(txCtx, project.id, {
+          name: op.name,
+          afterId: op.after ? await resolve(op.after) : undefined,
+        })
+      } else if (op.op === 'rename') {
+        await renameStage(txCtx, project.id, await resolve(op.stage), op.name)
+      } else if (op.op === 'move') {
+        await moveStage(txCtx, project.id, await resolve(op.stage), {
+          beforeId: op.before ? await resolve(op.before) : undefined,
+          afterId: op.after ? await resolve(op.after) : undefined,
+        })
+      } else if (op.op === 'archive') {
+        await setStageArchived(txCtx, project.id, await resolve(op.stage), true)
+      } else {
+        await setStageArchived(txCtx, project.id, await resolve(op.stage, true), false)
+      }
+    }
+    return (await loadStages(txCtx.db, project.id, { includeArchived: true })).map(toStageDto)
   })
 }

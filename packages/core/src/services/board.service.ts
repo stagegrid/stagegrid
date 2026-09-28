@@ -1,4 +1,4 @@
-import type { BoardDto, CellDetailDto, Stats } from '@stagegrid/shared'
+import type { BoardDto, CellDetailDto, CellStatus, StaleReason, Stats } from '@stagegrid/shared'
 import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 
 import { auditLog, cellEvents, cellRounds, cells, items, stages, users } from '../db/schema'
@@ -183,4 +183,66 @@ export async function getActivity(
     after: log.after,
     createdAt: log.createdAt.toISOString(),
   }))
+}
+
+/** Cell detail addressed by item path/id and stage name/id (used by MCP). */
+export async function getCellByRefs(
+  ctx: ServiceContext,
+  ref: string,
+  itemRef: string,
+  stageRef: string,
+): Promise<CellDetailDto> {
+  const { project } = await requireProjectRole(ctx, ref, 'viewer')
+  const [itemRows, stageRows] = await Promise.all([
+    loadItems(ctx.db, project.id),
+    loadStages(ctx.db, project.id),
+  ])
+  const resolver = makeResolver(itemRows, stageRows)
+  const item = resolver.item(itemRef)
+  const stage = resolver.stage(stageRef)
+  const [cell] = await ctx.db
+    .select({ id: cells.id })
+    .from(cells)
+    .where(and(eq(cells.itemId, item.id), eq(cells.stageId, stage.id)))
+  if (!cell) throw notFound('Cell not found')
+  return getCellDetail(ctx, project.id, cell.id)
+}
+
+export interface StaleCellDto {
+  item: string
+  stage: string
+  status: CellStatus
+  reason: StaleReason
+  since: string | null
+  plannedEnd: string | null
+}
+
+export async function listStaleCells(ctx: ServiceContext, ref: string): Promise<StaleCellDto[]> {
+  const { project } = await requireProjectRole(ctx, ref, 'viewer')
+  const [itemRows, stageRows, cellRows] = await Promise.all([
+    loadItems(ctx.db, project.id),
+    loadStages(ctx.db, project.id),
+    loadCells(ctx.db, project.id),
+  ])
+  const resolver = makeResolver(itemRows, stageRows)
+  const stageName = new Map(stageRows.map((s) => [s.id, s.name]))
+  const order = new Map(orderDepthFirst(itemRows).map((i, n) => [i.id, n]))
+  const stageOrder = new Map(stageRows.map((s, n) => [s.id, n]))
+  const now = ctx.now()
+  return cellRows
+    .map((c) => ({ c, reason: cellStale(c, project, now) }))
+    .filter((x): x is { c: (typeof cellRows)[number]; reason: StaleReason } => x.reason !== null)
+    .sort(
+      (a, b) =>
+        order.get(a.c.itemId)! - order.get(b.c.itemId)! ||
+        stageOrder.get(a.c.stageId)! - stageOrder.get(b.c.stageId)!,
+    )
+    .map(({ c, reason }) => ({
+      item: resolver.index.pathOf(c.itemId),
+      stage: stageName.get(c.stageId)!,
+      status: c.status,
+      reason,
+      since: c.statusChangedAt?.toISOString() ?? null,
+      plannedEnd: c.plannedEnd,
+    }))
 }

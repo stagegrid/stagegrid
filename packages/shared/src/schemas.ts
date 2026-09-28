@@ -58,6 +58,13 @@ export const changePasswordInput = z.object({
   newPassword: passwordSchema,
 })
 
+// ---- api tokens
+export const createTokenInput = z.object({
+  name: nameSchema(60),
+  expiresInDays: z.union([z.literal(30), z.literal(90), z.literal(365)]).optional(),
+})
+export type CreateTokenInput = z.infer<typeof createTokenInput>
+
 // ---- projects
 export const createProjectInput = z.object({
   name: nameSchema(LIMITS.projectName),
