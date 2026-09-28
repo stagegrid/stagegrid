@@ -18,9 +18,12 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
+import { Route as PrintSlugDocIdRouteImport } from './routes/print.$slug.$docId'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
 import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
 import { Route as AppPSlugTimelineRouteImport } from './routes/_app.p.$slug.timeline'
+import { Route as AppPSlugDocsIndexRouteImport } from './routes/_app.p.$slug.docs.index'
+import { Route as AppPSlugDocsDocIdRouteImport } from './routes/_app.p.$slug.docs.$docId'
 import { Route as AppPSlugReleasesIndexRouteImport } from './routes/_app.p.$slug.releases.index'
 import { Route as AppPSlugReleasesReleaseIdRouteImport } from './routes/_app.p.$slug.releases.$releaseId'
 
@@ -68,6 +71,11 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => AppRoute,
 } as any)
+const PrintSlugDocIdRoute = PrintSlugDocIdRouteImport.update({
+  id: '/print/$slug/$docId',
+  path: '/print/$slug/$docId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppPSlugIndexRoute = AppPSlugIndexRouteImport.update({
   id: '/p/$slug/',
   path: '/p/$slug/',
@@ -81,6 +89,16 @@ const AppPSlugSettingsRoute = AppPSlugSettingsRouteImport.update({
 const AppPSlugTimelineRoute = AppPSlugTimelineRouteImport.update({
   id: '/p/$slug/timeline',
   path: '/p/$slug/timeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPSlugDocsIndexRoute = AppPSlugDocsIndexRouteImport.update({
+  id: '/p/$slug/docs/',
+  path: '/p/$slug/docs/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPSlugDocsDocIdRoute = AppPSlugDocsDocIdRouteImport.update({
+  id: '/p/$slug/docs/$docId',
+  path: '/p/$slug/docs/$docId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPSlugReleasesIndexRoute = AppPSlugReleasesIndexRouteImport.update({
@@ -104,10 +122,13 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
+  '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
   '/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/p/$slug/docs/': typeof AppPSlugDocsIndexRoute
   '/p/$slug/releases/': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -119,10 +140,13 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug': typeof AppPSlugIndexRoute
+  '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
   '/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/p/$slug/docs': typeof AppPSlugDocsIndexRoute
   '/p/$slug/releases': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRoutesById {
@@ -136,10 +160,13 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/projects': typeof AppProjectsRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
+  '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
   '/_app/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
+  '/_app/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
   '/_app/p/$slug/releases/$releaseId': typeof AppPSlugReleasesReleaseIdRoute
+  '/_app/p/$slug/docs/': typeof AppPSlugDocsIndexRoute
   '/_app/p/$slug/releases/': typeof AppPSlugReleasesIndexRoute
 }
 export interface FileRouteTypes {
@@ -153,10 +180,13 @@ export interface FileRouteTypes {
     | '/profile'
     | '/projects'
     | '/admin/users'
+    | '/print/$slug/$docId'
     | '/p/$slug/settings'
     | '/p/$slug/timeline'
     | '/p/$slug/'
+    | '/p/$slug/docs/$docId'
     | '/p/$slug/releases/$releaseId'
+    | '/p/$slug/docs/'
     | '/p/$slug/releases/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -168,10 +198,13 @@ export interface FileRouteTypes {
     | '/profile'
     | '/projects'
     | '/admin/users'
+    | '/print/$slug/$docId'
     | '/p/$slug/settings'
     | '/p/$slug/timeline'
     | '/p/$slug'
+    | '/p/$slug/docs/$docId'
     | '/p/$slug/releases/$releaseId'
+    | '/p/$slug/docs'
     | '/p/$slug/releases'
   id:
     | '__root__'
@@ -184,10 +217,13 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/projects'
     | '/_app/admin/users'
+    | '/print/$slug/$docId'
     | '/_app/p/$slug/settings'
     | '/_app/p/$slug/timeline'
     | '/_app/p/$slug/'
+    | '/_app/p/$slug/docs/$docId'
     | '/_app/p/$slug/releases/$releaseId'
+    | '/_app/p/$slug/docs/'
     | '/_app/p/$slug/releases/'
   fileRoutesById: FileRoutesById
 }
@@ -198,6 +234,7 @@ export interface RootRouteChildren {
   AuthorizeRoute: typeof AuthorizeRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  PrintSlugDocIdRoute: typeof PrintSlugDocIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -265,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/print/$slug/$docId': {
+      id: '/print/$slug/$docId'
+      path: '/print/$slug/$docId'
+      fullPath: '/print/$slug/$docId'
+      preLoaderRoute: typeof PrintSlugDocIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/p/$slug/': {
       id: '/_app/p/$slug/'
       path: '/p/$slug'
@@ -284,6 +328,20 @@ declare module '@tanstack/react-router' {
       path: '/p/$slug/timeline'
       fullPath: '/p/$slug/timeline'
       preLoaderRoute: typeof AppPSlugTimelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/p/$slug/docs/': {
+      id: '/_app/p/$slug/docs/'
+      path: '/p/$slug/docs'
+      fullPath: '/p/$slug/docs/'
+      preLoaderRoute: typeof AppPSlugDocsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/p/$slug/docs/$docId': {
+      id: '/_app/p/$slug/docs/$docId'
+      path: '/p/$slug/docs/$docId'
+      fullPath: '/p/$slug/docs/$docId'
+      preLoaderRoute: typeof AppPSlugDocsDocIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/p/$slug/releases/': {
@@ -310,7 +368,9 @@ interface AppRouteChildren {
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
   AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
+  AppPSlugDocsDocIdRoute: typeof AppPSlugDocsDocIdRoute
   AppPSlugReleasesReleaseIdRoute: typeof AppPSlugReleasesReleaseIdRoute
+  AppPSlugDocsIndexRoute: typeof AppPSlugDocsIndexRoute
   AppPSlugReleasesIndexRoute: typeof AppPSlugReleasesIndexRoute
 }
 
@@ -321,7 +381,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
   AppPSlugTimelineRoute: AppPSlugTimelineRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
+  AppPSlugDocsDocIdRoute: AppPSlugDocsDocIdRoute,
   AppPSlugReleasesReleaseIdRoute: AppPSlugReleasesReleaseIdRoute,
+  AppPSlugDocsIndexRoute: AppPSlugDocsIndexRoute,
   AppPSlugReleasesIndexRoute: AppPSlugReleasesIndexRoute,
 }
 
@@ -334,6 +396,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthorizeRoute: AuthorizeRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  PrintSlugDocIdRoute: PrintSlugDocIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

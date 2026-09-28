@@ -36,7 +36,7 @@ export function ConnectAiDialog() {
   return (
     <Dialog onOpenChange={(o) => !o && setToken(null)}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" data-connect-ai>
           <BotIcon />
           Connect AI
         </Button>
