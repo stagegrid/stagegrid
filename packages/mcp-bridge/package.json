@@ -1,6 +1,6 @@
 {
   "name": "@stagegrid/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "stdio bridge to a Stagegrid MCP server, for MCP clients that only speak stdio",
   "license": "MIT",
   "homepage": "https://github.com/stagegrid/stagegrid#readme",
