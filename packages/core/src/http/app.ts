@@ -15,6 +15,7 @@ import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
 import { mcpRoutes } from './routes/mcp'
 import { projectRoutes } from './routes/projects'
+import { releaseRoutes } from './routes/releases'
 import { skillRoutes } from './routes/skill'
 import { streamRoutes } from './routes/stream'
 import { userRoutes } from './routes/users'
@@ -51,6 +52,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', authRoutes)
   api.route('/', userRoutes)
   api.route('/', projectRoutes)
+  api.route('/', releaseRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)
   api.all('*', (c) => errorResponse(c, 'not_found', 'Not found'))

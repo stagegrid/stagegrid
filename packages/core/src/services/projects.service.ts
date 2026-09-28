@@ -18,6 +18,7 @@ import { type ProjectRow, requireAdmin, requireProjectRole } from './access'
 import { audit } from './audit'
 import { requireActor, type ServiceContext, withTx } from './context'
 import { statsForCells } from './project-stats'
+import { nextReleases } from './releases.service'
 import { getInstanceSettings } from './settings.service'
 import { loadCells, loadCellsFor, loadStages } from './structure'
 
@@ -25,6 +26,7 @@ export function toProjectDto(
   p: ProjectRow,
   role: ProjectRole,
   stats: ProjectDto['stats'],
+  nextRelease: ProjectDto['nextRelease'] = null,
 ): ProjectDto {
   return {
     id: p.id,
@@ -36,6 +38,8 @@ export function toProjectDto(
     archivedAt: p.archivedAt?.toISOString() ?? null,
     role,
     stats,
+    nextRelease,
+    defaultReleasePhases: p.defaultReleasePhases,
   }
 }
 
@@ -72,10 +76,8 @@ export async function listProjects(
       .orderBy(asc(projects.name))
     rows = ps
   }
-  const allCells = await loadCellsFor(
-    ctx.db,
-    rows.map((r) => r.project.id),
-  )
+  const ids = rows.map((r) => r.project.id)
+  const [allCells, next] = await Promise.all([loadCellsFor(ctx.db, ids), nextReleases(ctx.db, ids)])
   const now = ctx.now()
   return rows.map(({ project, role }) =>
     toProjectDto(
@@ -86,16 +88,19 @@ export async function listProjects(
         project,
         now,
       ),
+      next.get(project.id) ?? null,
     ),
   )
 }
 
 export async function getProject(ctx: ServiceContext, ref: string): Promise<ProjectDto> {
   const { project, role } = await requireProjectRole(ctx, ref, 'viewer')
+  const next = await nextReleases(ctx.db, [project.id])
   return toProjectDto(
     project,
     role,
     statsForCells(await loadCells(ctx.db, project.id), project, ctx.now()),
+    next.get(project.id) ?? null,
   )
 }
 
@@ -176,6 +181,7 @@ export async function updateProject(
         description: input.description ?? project.description,
         timezone: input.timezone ?? project.timezone,
         staleDays: input.staleDays ?? project.staleDays,
+        defaultReleasePhases: input.defaultReleasePhases ?? project.defaultReleasePhases,
         updatedAt: ctx.now(),
       })
       .where(eq(projects.id, project.id))

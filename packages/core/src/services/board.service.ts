@@ -29,16 +29,18 @@ import { loadAssignees, loadComments, loadLinks } from './cell-details.service'
 import type { ServiceContext } from './context'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
+import { activeReleasesByItem } from './releases.service'
 import { toStageDto } from './stages.service'
 import { loadCells, loadItems, loadStages } from './structure'
 
 export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardDto> {
   const { project, role } = await requireProjectRole(ctx, ref, 'viewer')
-  const [stageRows, itemRows, cellRows, flags] = await Promise.all([
+  const [stageRows, itemRows, cellRows, flags, itemReleases] = await Promise.all([
     loadStages(ctx.db, project.id),
     loadItems(ctx.db, project.id),
     loadCells(ctx.db, project.id),
     loadCellFlags(ctx, project.id),
+    activeReleasesByItem(ctx.db, project.id),
   ])
   const now = ctx.now()
   const cellsMap: BoardDto['cells'] = {}
@@ -91,6 +93,7 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
       position: i.position,
       depth: i.depth,
       assignees: [...(itemAssignees.get(i.id)?.values() ?? [])],
+      releases: itemReleases.get(i.id) ?? [],
     })),
     cells: cellsMap,
     stats: { ...computeStats(statsInput), items: itemRows.length, byStage },

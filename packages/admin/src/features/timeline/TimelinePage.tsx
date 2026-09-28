@@ -6,12 +6,20 @@ import { useMemo, useRef, useState } from 'react'
 import { ErrorState } from '@/components/page-state'
 import { ProjectTabs } from '@/components/project-tabs'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { CellPopover, type OpenCell } from '@/features/board/CellPopover'
 import { boardQuery } from '@/features/board/queries'
 import { STATUS_META } from '@/features/board/status'
 import { useProjectStream } from '@/features/board/useProjectStream'
+import { useRelease, useReleases } from '@/features/releases/queries'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +36,7 @@ import {
 import { useBurnup, useTimeline } from './queries'
 
 const ROW = 28
+const NONE = '__none__'
 const NAME_WIDTH = 280
 
 type Row =
@@ -56,6 +65,9 @@ export function TimelinePage({ slug }: { slug: string }) {
   const { data: board } = useQuery(boardQuery(slug))
   useProjectStream(slug)
   const [zoom, setZoom] = useState<Zoom>('month')
+  const [releaseId, setReleaseId] = useState<string>()
+  const { data: activeReleases } = useReleases(slug, 'active')
+  const { data: release } = useRelease(slug, releaseId)
   const [open, setOpen] = useState<{ cell: OpenCell; x: number; y: number } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const rows = useMemo(() => (t ? rowsOf(t) : []), [t])
@@ -70,7 +82,14 @@ export function TimelinePage({ slug }: { slug: string }) {
   if (error || !t) return <ErrorState error={error} onRetry={() => void refetch()} />
 
   const px = ZOOM[zoom]
-  const range = timelineRange(t.from, t.to)
+  const releaseDates = release
+    ? [release.targetDate, ...release.phases.flatMap((p) => [p.plannedStart, p.plannedEnd])].filter(
+        (d): d is string => !!d,
+      )
+    : []
+  const from = [t.from, ...releaseDates].reduce((a, b) => (a < b ? a : b))
+  const to = [t.to, ...releaseDates].reduce((a, b) => (a > b ? a : b))
+  const range = timelineRange(from, to)
   const scale = makeScale(range.start, px)
   const width = range.days * px
   const tz = t.project.timezone
@@ -84,6 +103,24 @@ export function TimelinePage({ slug }: { slug: string }) {
         <h1 className="truncate text-base font-semibold">{t.project.name}</h1>
         <ProjectTabs slug={slug} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {activeReleases && activeReleases.length > 0 && (
+            <Select
+              value={releaseId ?? NONE}
+              onValueChange={(v) => setReleaseId(v === NONE ? undefined : v)}
+            >
+              <SelectTrigger size="sm" className="w-44 text-xs" aria-label="Show release">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>No release</SelectItem>
+                {activeReleases.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    Release {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <ToggleGroup
             type="single"
             size="sm"
@@ -138,6 +175,35 @@ export function TimelinePage({ slug }: { slug: string }) {
               ))}
             </div>
           </div>
+          {release && (
+            <div className="bg-background sticky top-8 z-20 flex h-8 border-b">
+              <div
+                className="bg-background sticky left-0 z-10 shrink-0 truncate border-r px-3 text-xs leading-8 font-medium"
+                style={{ width: NAME_WIDTH }}
+              >
+                Release {release.name}
+              </div>
+              <div className="relative" style={{ width }}>
+                {release.phases
+                  .filter((p) => p.plannedStart && p.plannedEnd)
+                  .map((p) => (
+                    <div
+                      key={p.id}
+                      className="bg-primary/15 text-primary absolute top-1.5 h-5 overflow-hidden rounded px-1 text-[11px] leading-5 whitespace-nowrap"
+                      style={scale.bar(p.plannedStart!, p.plannedEnd!)}
+                      title={`${p.name}: ${p.plannedStart} → ${p.plannedEnd}`}
+                    >
+                      {p.name}
+                    </div>
+                  ))}
+                <div
+                  className="border-destructive absolute top-0 bottom-0 border-l-2"
+                  style={{ left: scale.x(release.targetDate) + px / 2 }}
+                  title={`Go-live ${release.targetDate}`}
+                />
+              </div>
+            </div>
+          )}
           <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
             <div
               className="bg-primary/60 pointer-events-none absolute top-0 bottom-0 z-10 w-px"

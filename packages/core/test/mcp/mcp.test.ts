@@ -48,20 +48,27 @@ describe('MCP endpoint', () => {
     const { client } = await world()
     const tools = (await client.listTools()).tools
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'add_release_items',
       'apply_changes',
       'create_items',
       'create_project',
+      'create_release',
       'delete_item',
       'edit_event',
       'get_board',
       'get_cell',
       'get_recent_changes',
+      'get_release',
       'get_summary',
       'list_projects',
+      'list_releases',
       'list_stale_cells',
       'manage_stages',
+      'mark_release_released',
       'move_item',
+      'remove_release_items',
       'update_item',
+      'update_release',
     ])
     expect(tools.find((t) => t.name === 'get_board')?.annotations?.readOnlyHint).toBe(true)
     expect(tools.find((t) => t.name === 'delete_item')?.annotations?.destructiveHint).toBe(true)

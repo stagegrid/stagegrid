@@ -79,6 +79,14 @@ export const updateProjectInput = z.object({
   description: z.string().trim().max(LIMITS.projectDescription).optional(),
   timezone: timezoneSchema.optional(),
   staleDays: z.number().int().min(LIMITS.staleDaysMin).max(LIMITS.staleDaysMax).optional(),
+  defaultReleasePhases: z
+    .array(z.object({ name: nameSchema(60), freeze: z.boolean().optional() }))
+    .max(10)
+    .refine(
+      (ps) => ps.filter((p) => p.freeze).length <= 1,
+      'At most one phase can be the freeze point',
+    )
+    .optional(),
 })
 export const addMemberInput = z.object({ userId: z.uuid(), role: projectRoleSchema })
 export const updateMemberInput = z.object({ role: projectRoleSchema })
@@ -173,3 +181,63 @@ export type ChangeInput = z.infer<typeof changeInput>
 export type ChangesInput = z.infer<typeof changesInput>
 export type AssigneeInput = z.infer<typeof assigneeInput>
 export type LinkInput = z.infer<typeof linkInput>
+
+// ---- releases
+export const releasePhaseInput = z.object({
+  id: z.uuid().optional(),
+  name: nameSchema(60),
+  plannedStart: dateSchema.nullable().optional(),
+  plannedEnd: dateSchema.nullable().optional(),
+  freeze: z.boolean().optional(),
+})
+export const releasePhasesInput = z
+  .array(releasePhaseInput)
+  .max(10)
+  .refine(
+    (ps) => ps.filter((p) => p.freeze).length <= 1,
+    'At most one phase can be the freeze point',
+  )
+export const createReleaseInput = z.object({
+  name: nameSchema(100),
+  targetDate: dateSchema,
+  description: z.string().trim().max(2000).default(''),
+  phases: releasePhasesInput.optional(),
+})
+export const updateReleaseInput = z.object({
+  name: nameSchema(100).optional(),
+  targetDate: dateSchema.optional(),
+  description: z.string().trim().max(2000).optional(),
+})
+export const releaseItemInput = z
+  .object({
+    item: refSchema,
+    kind: z.enum(['new', 'change']),
+    stages: z
+      .array(refSchema)
+      .min(1)
+      .max(30)
+      .optional()
+      .describe('Required for kind "change": the stages to redo'),
+    includeDescendants: z.boolean().optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.kind === 'new' || (v.stages?.length ?? 0) > 0, {
+    message: 'kind "change" needs stages',
+    path: ['stages'],
+  })
+  .refine((v) => v.kind === 'change' || !v.stages, {
+    message: 'kind "new" takes every stage; omit stages',
+    path: ['stages'],
+  })
+export const addReleaseItemsInput = z.object({
+  items: z.array(releaseItemInput).min(1).max(500),
+  dryRun: z.boolean().default(false),
+})
+export const releaseNoteInput = z.object({ note: z.string().trim().max(500).nullable() })
+export const markReleasedInput = z.object({ force: z.boolean().default(false) })
+
+export type ReleasePhaseInput = z.infer<typeof releasePhaseInput>
+export type CreateReleaseInput = z.infer<typeof createReleaseInput>
+export type UpdateReleaseInput = z.infer<typeof updateReleaseInput>
+export type ReleaseItemInput = z.infer<typeof releaseItemInput>
+export type AddReleaseItemsInput = z.infer<typeof addReleaseItemsInput>

@@ -31,6 +31,9 @@ export interface ProjectDto {
   archivedAt: string | null
   role: ProjectRole
   stats: Stats
+  /** Nearest active release by target date (phase 5). */
+  nextRelease: { id: string; name: string; targetDate: string; percent: number } | null
+  defaultReleasePhases: { name: string; freeze?: boolean }[]
 }
 
 export interface StageDto {
@@ -53,6 +56,8 @@ export interface BoardItemDto {
   depth: number
   /** Union of the assignees of this item's cells. */
   assignees: AssigneeDto[]
+  /** Active releases this item is in (phase 5). */
+  releases: { id: string; name: string }[]
 }
 
 export interface BoardCellDto {
@@ -205,4 +210,78 @@ export interface TimelineDto {
 
 export interface BurnupDto {
   points: { date: string; scope: number; done: number }[]
+}
+
+export type ReleaseDisplayStatus = 'planned' | 'in_progress' | 'at_risk' | 'released' | 'cancelled'
+
+export interface ReleasePhaseDto {
+  id: string
+  name: string
+  plannedStart: string | null
+  plannedEnd: string | null
+  freeze: boolean
+}
+
+export type ReleaseRiskCode =
+  | 'past_target'
+  | 'planned_after_target'
+  | 'planned_after_freeze'
+  | 'not_started_near_freeze'
+  | 'not_started_near_target'
+
+export interface ReleaseRiskDto {
+  code: ReleaseRiskCode
+  message: string
+  cellId?: string
+  item?: string
+  stage?: string
+}
+
+export interface ReleaseSummaryDto {
+  id: string
+  name: string
+  targetDate: string
+  status: 'active' | 'released' | 'cancelled'
+  displayStatus: ReleaseDisplayStatus
+  stats: Stats
+  riskCount: number
+  itemCount: { new: number; change: number }
+  releasedAt: string | null
+}
+
+export interface ReleaseScopeItemDto {
+  id: string
+  parentId: string | null
+  name: string
+  path: string
+  depth: number
+  /** null = shown only as context (an ancestor of an item in scope). */
+  kind: 'new' | 'change' | null
+  note: string | null
+  /** stageId → cell, only for cells in scope. */
+  cells: Record<string, { cellId: string; status: CellStatus; stale: StaleReason | null }>
+}
+
+export interface ReleaseDetailDto extends ReleaseSummaryDto {
+  description: string
+  project: { slug: string; name: string; timezone: string; role: ProjectRole }
+  today: string
+  phases: ReleasePhaseDto[]
+  risks: ReleaseRiskDto[]
+  stages: { id: string; name: string }[]
+  scope: ReleaseScopeItemDto[]
+  snapshot: ReleaseSnapshot | null
+}
+
+export interface ReleaseSnapshot {
+  releasedAt: string
+  targetDate: string
+  phases: ReleasePhaseDto[]
+  stats: Stats
+  items: {
+    path: string
+    kind: 'new' | 'change'
+    note: string | null
+    cells: { stage: string; status: CellStatus }[]
+  }[]
 }

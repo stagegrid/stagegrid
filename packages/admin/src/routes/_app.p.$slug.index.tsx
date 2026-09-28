@@ -8,6 +8,7 @@ export const Route = createFileRoute('/_app/p/$slug/')({
     todo: z.boolean().optional().catch(undefined),
     stale: z.boolean().optional().catch(undefined),
     who: z.string().optional().catch(undefined),
+    release: z.string().optional().catch(undefined),
   }),
   component: function BoardRoute() {
     const { slug } = Route.useParams()

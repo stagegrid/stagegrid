@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useRelease, useReleases } from '@/features/releases/queries'
 import { cn } from '@/lib/utils'
 
 import { AddItemsDialog } from './AddItemsDialog'
@@ -47,6 +48,8 @@ export interface BoardSearch {
   stale?: boolean
   /** assignee key, see `assigneeKey` */
   who?: string
+  /** release id: show only its scope */
+  release?: string
 }
 
 export function BoardPage({
@@ -67,9 +70,22 @@ export function BoardPage({
   )
   const [present, setPresent] = useState(false)
   const [adding, setAdding] = useState<{ parent: { id: string; name: string } | null } | null>(null)
+  const { data: activeReleases } = useReleases(slug, 'active')
+  const { data: release } = useRelease(slug, search.release)
+  const releaseScope = useMemo(() => {
+    if (!release) return null
+    const items = new Set(release.scope.filter((i) => i.kind).map((i) => i.id))
+    const cells = new Set(release.scope.flatMap((i) => Object.values(i.cells).map((c) => c.cellId)))
+    return { items, cells }
+  }, [release])
   const filters = useMemo(
-    () => ({ allToDo: !!search.todo, needsUpdate: !!search.stale, assignee: search.who }),
-    [search.todo, search.stale, search.who],
+    () => ({
+      allToDo: !!search.todo,
+      needsUpdate: !!search.stale,
+      assignee: search.who,
+      items: releaseScope?.items,
+    }),
+    [search.todo, search.stale, search.who, releaseScope],
   )
   const people = useMemo(() => {
     const byKey = new Map<string, string>()
@@ -119,6 +135,24 @@ export function BoardPage({
           </span>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-3">
+          {activeReleases && activeReleases.length > 0 && (
+            <Select
+              value={search.release ?? ALL}
+              onValueChange={(v) => setSearch({ ...search, release: v === ALL ? undefined : v })}
+            >
+              <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Filter by release">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All items</SelectItem>
+                {activeReleases.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    Release {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {people.length > 0 && (
             <Select
               value={search.who ?? ALL}
@@ -212,6 +246,7 @@ export function BoardPage({
           ) : (
             <BoardGrid
               board={board}
+              scopeCells={releaseScope?.cells}
               rows={rows}
               onToggle={toggleCollapsed}
               onAddChild={(parent) => setAdding({ parent })}

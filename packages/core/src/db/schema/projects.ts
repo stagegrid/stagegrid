@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -22,6 +23,10 @@ export const projects = pgTable('projects', {
   description: text('description').notNull().default(''),
   timezone: text('timezone').notNull(),
   staleDays: integer('stale_days').notNull().default(7),
+  defaultReleasePhases: jsonb('default_release_phases')
+    .$type<{ name: string; freeze?: boolean }[]>()
+    .notNull()
+    .default([{ name: 'Dev' }, { name: 'SIT', freeze: true }, { name: 'UAT' }]),
   archivedAt: ts('archived_at'),
   createdBy: uuid('created_by')
     .notNull()

@@ -78,3 +78,12 @@ To fix a status change that was recorded wrong, read its id with `get_cell` and 
 | `validation_error` | Nothing was saved. Every problem is listed with its index; fix them all and retry.              |
 | `forbidden`        | The user's role in this project doesn't allow it (viewers can only read; stages need an owner). |
 | `conflict`         | For example the project is archived or a name is taken. Explain it to the user.                 |
+
+## Releases
+
+A **release** is a go-live with a target date, phases (for example Dev, SIT, UAT — the phase marked `freeze` is when development should be finished), and a scope:
+
+- `kind: "new"` — an item built in this release; every stage is in scope.
+- `kind: "change"` — an existing item modified in this release; give the `stages` to redo. Those cells are reopened (to `todo`) if they were done, with reason "Release <name>".
+
+Use `list_releases` / `get_release` to answer "what goes live on <date>?" and "are we on track?" (risks are computed: work planned after the target or after the freeze phase starts, or not started close to it). Preview `add_release_items` with `dryRun: true` when it will reopen cells. `mark_release_released` (owners) snapshots the scope — ask the user first.

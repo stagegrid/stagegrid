@@ -70,6 +70,7 @@ export function browser(app: App) {
     get: (p: string, h?: Record<string, string>) => call('GET', p, undefined, h),
     post: (p: string, json?: unknown, h?: Record<string, string>) => call('POST', p, json ?? {}, h),
     patch: (p: string, json: unknown) => call('PATCH', p, json),
+    put: (p: string, json: unknown) => call('PUT', p, json),
     delete: (p: string) => call('DELETE', p),
     get cookie() {
       return cookie
