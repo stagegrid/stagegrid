@@ -39,4 +39,12 @@ export const LIMITS = {
   staleDaysMax: 365,
   passwordMin: 10,
   passwordMax: 200,
+  commentBody: 10_000,
+  linkTitle: 200,
+  linkUrl: 2000,
+  assigneeName: 100,
+  assigneesPerCell: 20,
 } as const
+
+export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
+export type LinkKind = (typeof LINK_KINDS)[number]

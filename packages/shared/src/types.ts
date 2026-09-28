@@ -1,4 +1,4 @@
-import type { CellStatus, ProjectRole, UserStatus, Via } from './constants'
+import type { CellStatus, LinkKind, ProjectRole, UserStatus, Via } from './constants'
 
 export type StaleReason = 'doing_too_long' | 'past_planned_end'
 
@@ -40,12 +40,19 @@ export interface StageDto {
   archivedAt: string | null
 }
 
+export interface AssigneeDto {
+  userId: string | null
+  name: string
+}
+
 export interface BoardItemDto {
   id: string
   parentId: string | null
   name: string
   position: string
   depth: number
+  /** Union of the assignees of this item's cells. */
+  assignees: AssigneeDto[]
 }
 
 export interface BoardCellDto {
@@ -53,6 +60,8 @@ export interface BoardCellDto {
   status: CellStatus
   rework: number
   stale: StaleReason | null
+  hasComments: boolean
+  hasDocLink: boolean
 }
 
 export interface BoardDto {
@@ -106,6 +115,25 @@ export interface CellDetailDto {
   plannedEnd: string | null
   events: CellEventDto[]
   rounds: CellRoundDto[]
+  assignees: AssigneeDto[]
+  comments: CommentDto[]
+  links: LinkDto[]
+}
+
+export interface CommentDto {
+  id: string
+  body: string
+  author: ActorDto
+  createdAt: string
+  editedAt: string | null
+}
+
+export interface LinkDto {
+  id: string
+  title: string
+  url: string
+  kind: LinkKind
+  createdAt: string
 }
 
 export interface ChangeResultDto {
@@ -117,6 +145,8 @@ export interface ChangeResultDto {
   before: { status: CellStatus }
   after: { status: CellStatus }
   backdatedBeforeLaterEvent: boolean
+  /** Which non-status parts changed: assignees, planned, comment, link. */
+  details: ('assignees' | 'planned' | 'comment' | 'link')[]
 }
 
 export interface ChangesResultDto {

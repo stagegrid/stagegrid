@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { errorMessage } from '@/lib/api'
+import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { useItemMutations } from './queries'
@@ -133,11 +135,31 @@ export function ItemName({
         />
       ) : (
         <span
-          className="truncate text-sm"
+          className={cn(
+            'truncate text-sm',
+            item.assignees.length > 0 ? 'max-w-[65%] shrink-0' : 'min-w-0',
+          )}
           title={item.name}
           onDoubleClick={() => canEdit && setEditing(true)}
         >
           {item.name}
+        </span>
+      )}
+      {!editing && item.assignees.length > 0 && (
+        <span
+          className="ml-1 flex min-w-0 shrink-0 -space-x-1.5"
+          title={item.assignees.map((a) => a.name).join(', ')}
+        >
+          {item.assignees.slice(0, 3).map((a) => (
+            <Avatar key={a.userId ?? a.name} className="ring-background size-5 ring-2">
+              <AvatarFallback className="text-[9px]">{initials(a.name)}</AvatarFallback>
+            </Avatar>
+          ))}
+          {item.assignees.length > 3 && (
+            <span className="text-muted-foreground pl-2 text-[10px]">
+              +{item.assignees.length - 3}
+            </span>
+          )}
         </span>
       )}
       {canEdit && !editing && (
@@ -171,7 +193,7 @@ export function ItemName({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete &ldquo;{item.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogTitle>Delete “{item.name}”?</AlertDialogTitle>
             <AlertDialogDescription>
               {(() => {
                 const n = countDescendants(board, item.id)

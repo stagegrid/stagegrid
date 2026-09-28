@@ -5,7 +5,12 @@ export interface BoardFilters {
   allToDo: boolean
   /** Show only rows with a stale cell (plus their ancestors). */
   needsUpdate: boolean
+  /** Show only rows assigned to this person: a user id, or `name:<lowercased name>` for free-text names. */
+  assignee?: string
 }
+
+export const assigneeKey = (a: { userId: string | null; name: string }): string =>
+  a.userId ?? `name:${a.name.toLowerCase()}`
 
 export interface VisibleRow {
   item: BoardItemDto
@@ -30,13 +35,15 @@ export function visibleRows(
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1)
 
   const matches = (i: BoardItemDto): boolean => {
+    if (filters.assignee && !i.assignees.some((a) => assigneeKey(a) === filters.assignee))
+      return false
     const cells = Object.values(board.cells[i.id] ?? {})
     if (filters.needsUpdate && !cells.some((c) => c.stale)) return false
     if (filters.allToDo && !cells.some((c) => c.status === 'todo' || c.status === 'doing'))
       return false
     return true
   }
-  const filtering = filters.allToDo || filters.needsUpdate
+  const filtering = filters.allToDo || filters.needsUpdate || !!filters.assignee
 
   // subtreeMatch[i] = item i or any descendant matches. Walk backwards so children come first.
   const subtreeMatch = new Map<string, boolean>()

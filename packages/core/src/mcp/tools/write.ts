@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { applyChanges } from '../../services/changes.service'
 import type { ServiceContext } from '../../services/context'
+import { editEvent } from '../../services/events.service'
 import { createItems, deleteItem, moveItem, renameItem } from '../../services/items.service'
 import { createProject } from '../../services/projects.service'
 import { manageStages, type StageOp } from '../../services/stages.service'
@@ -19,7 +20,8 @@ export function registerWriteTools(server: McpServer, ctx: ServiceContext): void
       title: 'Apply status changes',
       description: `Change cell statuses (skip | todo | doing | done), all-or-nothing, up to ${LIMITS.changesPerRequest} per call.
 When the changes come from another system or there is more than one, FIRST call with dryRun: true, show the user a table (Item › Stage | now | → new | when), wait for their confirmation, THEN call again with dryRun: false.
-Set happenedAt to when it really happened (e.g. when the Jira issue moved) — Stagegrid builds its timeline from it. When reopening a done cell, give a reason.`,
+Set happenedAt to when it really happened (e.g. when the Jira issue moved) — Stagegrid builds its timeline from it. When reopening a done cell, give a reason.
+A change can also replace assignees ([{userId} or {name: "Somchai (Jira)"}]), set plannedStart/plannedEnd (YYYY-MM-DD, null clears), add a comment (markdown), or add a link ({title, url, kind: doc|design|issue|other}).`,
       inputSchema: {
         project,
         changes: z.array(changeInput).min(1).max(LIMITS.changesPerRequest),
@@ -29,6 +31,24 @@ Set happenedAt to when it really happened (e.g. when the Jira issue moved) — S
     },
     ({ project: ref, changes, dryRun }) =>
       run(() => applyChanges(ctx, ref, { changes, dryRun: dryRun ?? false })),
+  )
+
+  server.registerTool(
+    'edit_event',
+    {
+      title: 'Correct history',
+      description:
+        'Fix a status change that was recorded wrong: move its happenedAt or delete it. Get event ids from get_cell. Status, rework, and rounds are recomputed. Confirm with the user first.',
+      inputSchema: {
+        project,
+        eventId: z.uuid(),
+        happenedAt: z.iso.datetime({ offset: true }).optional(),
+        delete: z.boolean().optional(),
+      },
+      annotations: { destructiveHint: true },
+    },
+    ({ project: ref, eventId, happenedAt, delete: del }) =>
+      run(() => editEvent(ctx, ref, eventId, { happenedAt, delete: del })),
   )
 
   server.registerTool(

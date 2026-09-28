@@ -1,4 +1,10 @@
-import type { BoardDto, CellDetailDto, ChangeInput, ChangesResultDto } from '@stagegrid/shared'
+import type {
+  BoardDto,
+  CellDetailDto,
+  ChangeInput,
+  ChangesResultDto,
+  LinkKind,
+} from '@stagegrid/shared'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
@@ -64,6 +70,62 @@ export function useItemMutations(slug: string) {
       mutationFn: (id: string) =>
         api<{ deletedCount: number }>(`${base}/${id}`, { method: 'DELETE' }),
       ...opts,
+    }),
+  }
+}
+
+/** Mutations for one cell's details; all refresh the board and the cell. */
+export function useCellMutations(
+  slug: string,
+  cell: { cellId: string; itemId: string; stageId: string },
+) {
+  const invalidate = useInvalidateProject(slug)
+  const base = `/projects/${encodeURIComponent(slug)}`
+  const onSuccess = () => invalidate()
+  const change = (fields: Omit<ChangeInput, 'item' | 'stage'>) =>
+    api<ChangesResultDto>(`${base}/changes`, {
+      body: { changes: [{ item: cell.itemId, stage: cell.stageId, ...fields }] },
+    })
+  return {
+    setAssignees: useMutation({
+      mutationFn: (assignees: ({ userId: string } | { name: string })[]) => change({ assignees }),
+      onSuccess,
+    }),
+    setPlanned: useMutation({
+      mutationFn: (p: { plannedStart: string | null; plannedEnd: string | null }) => change(p),
+      onSuccess,
+    }),
+    addComment: useMutation({
+      mutationFn: (body: string) =>
+        api(`${base}/cells/${cell.cellId}/comments`, { body: { body } }),
+      onSuccess,
+    }),
+    editComment: useMutation({
+      mutationFn: (v: { id: string; body: string }) =>
+        api(`${base}/comments/${v.id}`, { method: 'PATCH', body: { body: v.body } }),
+      onSuccess,
+    }),
+    deleteComment: useMutation({
+      mutationFn: (id: string) => api(`${base}/comments/${id}`, { method: 'DELETE' }),
+      onSuccess,
+    }),
+    addLink: useMutation({
+      mutationFn: (link: { title: string; url: string; kind: LinkKind }) =>
+        api(`${base}/cells/${cell.cellId}/links`, { body: link }),
+      onSuccess,
+    }),
+    deleteLink: useMutation({
+      mutationFn: (id: string) => api(`${base}/links/${id}`, { method: 'DELETE' }),
+      onSuccess,
+    }),
+    moveEvent: useMutation({
+      mutationFn: (v: { id: string; happenedAt: string }) =>
+        api(`${base}/events/${v.id}`, { method: 'PATCH', body: { happenedAt: v.happenedAt } }),
+      onSuccess,
+    }),
+    deleteEvent: useMutation({
+      mutationFn: (id: string) => api(`${base}/events/${id}`, { method: 'DELETE' }),
+      onSuccess,
     }),
   }
 }

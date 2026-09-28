@@ -1,10 +1,17 @@
 import type { BoardDto, CellStatus } from '@stagegrid/shared'
 import { useQuery } from '@tanstack/react-query'
+import { EllipsisIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
@@ -13,7 +20,8 @@ import { errorMessage } from '@/lib/api'
 import { formatDate, formatDateTime, relativeTime, toLocalInput } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import { cellQuery, useApplyChanges } from './queries'
+import { CellDetails } from './CellDetails'
+import { cellQuery, useApplyChanges, useCellMutations } from './queries'
 import { STATUS_META, STATUS_ORDER } from './status'
 
 export interface OpenCell {
@@ -68,6 +76,8 @@ function CellEditor({
   const [when, setWhen] = useState(() => toLocalInput(new Date()))
   const [reason, setReason] = useState('')
   const apply = useApplyChanges(slug)
+  const cellMutations = useCellMutations(slug, open)
+  const [movingEvent, setMovingEvent] = useState<{ id: string; value: string } | null>(null)
   const item = board.items.find((i) => i.id === open.itemId)
   const stage = board.stages.find((s) => s.id === open.stageId)
 
@@ -180,6 +190,8 @@ function CellEditor({
         )
       )}
 
+      {detail && <CellDetails board={board} open={open} detail={detail} canEdit={canEdit} />}
+
       <div className="grid gap-2 border-t pt-3">
         <h3 className="text-muted-foreground text-xs font-medium uppercase">History</h3>
         {isLoading && <Skeleton className="h-12" />}
@@ -216,7 +228,62 @@ function CellEditor({
                   >
                     {relativeTime(e.happenedAt)}
                   </span>
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger aria-label="Event actions">
+                        <EllipsisIcon className="text-muted-foreground size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setMovingEvent({
+                              id: e.id,
+                              value: toLocalInput(new Date(e.happenedAt)),
+                            })
+                          }
+                        >
+                          Edit time
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            cellMutations.deleteEvent.mutate(e.id, {
+                              onError: (err) => toast.error(errorMessage(err)),
+                            })
+                          }
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
+                {movingEvent?.id === e.id && (
+                  <div className="flex gap-1">
+                    <Input
+                      type="datetime-local"
+                      aria-label="New time"
+                      value={movingEvent.value}
+                      max={toLocalInput(new Date())}
+                      onChange={(ev) => setMovingEvent({ id: e.id, value: ev.target.value })}
+                      className="h-7"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        cellMutations.moveEvent.mutate(
+                          { id: e.id, happenedAt: new Date(movingEvent.value).toISOString() },
+                          {
+                            onError: (err) => toast.error(errorMessage(err)),
+                            onSuccess: () => setMovingEvent(null),
+                          },
+                        )
+                      }
+                    >
+                      Save
+                    </Button>
+                  </div>
+                )}
                 <div className="text-muted-foreground flex gap-1.5">
                   <span>{e.actor.name}</span>
                   <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">

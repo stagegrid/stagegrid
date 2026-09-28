@@ -1,12 +1,31 @@
-import type { BoardDto, CellDetailDto, CellStatus, StaleReason, Stats } from '@stagegrid/shared'
+import type {
+  AssigneeDto,
+  BoardDto,
+  CellDetailDto,
+  CellStatus,
+  StaleReason,
+  Stats,
+} from '@stagegrid/shared'
 import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 
-import { auditLog, cellEvents, cellRounds, cells, items, stages, users } from '../db/schema'
+import {
+  auditLog,
+  cellAssignees,
+  cellEvents,
+  cellLinks,
+  cellRounds,
+  cells,
+  comments,
+  items,
+  stages,
+  users,
+} from '../db/schema'
 import { computeCellHistory } from '../domain/rounds'
 import { computeStats } from '../domain/stats'
 import { orderDepthFirst } from '../domain/tree'
 import { notFound } from '../errors'
 import { requireProjectRole } from './access'
+import { loadAssignees, loadComments, loadLinks } from './cell-details.service'
 import type { ServiceContext } from './context'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
@@ -15,10 +34,11 @@ import { loadCells, loadItems, loadStages } from './structure'
 
 export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardDto> {
   const { project, role } = await requireProjectRole(ctx, ref, 'viewer')
-  const [stageRows, itemRows, cellRows] = await Promise.all([
+  const [stageRows, itemRows, cellRows, flags] = await Promise.all([
     loadStages(ctx.db, project.id),
     loadItems(ctx.db, project.id),
     loadCells(ctx.db, project.id),
+    loadCellFlags(ctx, project.id),
   ])
   const now = ctx.now()
   const cellsMap: BoardDto['cells'] = {}
@@ -28,6 +48,7 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
     reworkCount: number
     stale: boolean
   }[] = []
+  const itemAssignees = new Map<string, Map<string, AssigneeDto>>()
   for (const c of cellRows) {
     const stale = cellStale(c, project, now)
     ;(cellsMap[c.itemId] ??= {})[c.stageId] = {
@@ -35,6 +56,8 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
       status: c.status,
       rework: c.reworkCount,
       stale,
+      hasComments: flags.withComments.has(c.id),
+      hasDocLink: flags.withDocLink.has(c.id),
     }
     statsInput.push({
       stageId: c.stageId,
@@ -42,6 +65,11 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
       reworkCount: c.reworkCount,
       stale: stale !== null,
     })
+    for (const a of flags.assignees.get(c.id) ?? []) {
+      const byKey = itemAssignees.get(c.itemId) ?? new Map<string, AssigneeDto>()
+      byKey.set(a.userId ?? `name:${a.name.toLowerCase()}`, a)
+      itemAssignees.set(c.itemId, byKey)
+    }
   }
   const byStage: Record<string, Stats> = {}
   for (const s of stageRows)
@@ -62,9 +90,52 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
       name: i.name,
       position: i.position,
       depth: i.depth,
+      assignees: [...(itemAssignees.get(i.id)?.values() ?? [])],
     })),
     cells: cellsMap,
     stats: { ...computeStats(statsInput), items: itemRows.length, byStage },
+  }
+}
+
+/** Which cells have comments / doc links, and every cell's assignees, for one project. */
+async function loadCellFlags(ctx: ServiceContext, projectId: string) {
+  const inProject = and(eq(items.projectId, projectId), isNull(items.deletedAt))
+  const [commentRows, linkRows, assigneeRows] = await Promise.all([
+    ctx.db
+      .selectDistinct({ cellId: comments.cellId })
+      .from(comments)
+      .innerJoin(cells, eq(cells.id, comments.cellId))
+      .innerJoin(items, eq(items.id, cells.itemId))
+      .where(and(inProject, isNull(comments.deletedAt))),
+    ctx.db
+      .selectDistinct({ cellId: cellLinks.cellId })
+      .from(cellLinks)
+      .innerJoin(cells, eq(cells.id, cellLinks.cellId))
+      .innerJoin(items, eq(items.id, cells.itemId))
+      .where(and(inProject, isNull(cellLinks.deletedAt), eq(cellLinks.kind, 'doc'))),
+    ctx.db
+      .select({
+        cellId: cellAssignees.cellId,
+        userId: cellAssignees.userId,
+        displayName: cellAssignees.displayName,
+        userName: users.name,
+      })
+      .from(cellAssignees)
+      .innerJoin(cells, eq(cells.id, cellAssignees.cellId))
+      .innerJoin(items, eq(items.id, cells.itemId))
+      .leftJoin(users, eq(users.id, cellAssignees.userId))
+      .where(inProject),
+  ])
+  const assignees = new Map<string, AssigneeDto[]>()
+  for (const r of assigneeRows) {
+    const list = assignees.get(r.cellId) ?? []
+    list.push({ userId: r.userId, name: r.userId ? (r.userName ?? 'Unknown') : r.displayName! })
+    assignees.set(r.cellId, list)
+  }
+  return {
+    withComments: new Set(commentRows.map((r) => r.cellId)),
+    withDocLink: new Set(linkRows.map((r) => r.cellId)),
+    assignees,
   }
 }
 
@@ -104,8 +175,13 @@ export async function getCellDetail(
     .where(and(eq(cellEvents.cellId, cellId), isNull(cellEvents.deletedAt)))
   const history = computeCellHistory(events.map((e) => e.event))
   const fromById = new Map(history.transitions.map((t) => [t.eventId, t.fromStatus]))
-  const rounds = await ctx.db.select().from(cellRounds).where(eq(cellRounds.cellId, cellId))
-  const itemsAll = await loadItems(ctx.db, project.id)
+  const [rounds, itemsAll, assignees, commentList, links] = await Promise.all([
+    ctx.db.select().from(cellRounds).where(eq(cellRounds.cellId, cellId)),
+    loadItems(ctx.db, project.id),
+    loadAssignees(ctx.db, [cellId]),
+    loadComments(ctx.db, cellId),
+    loadLinks(ctx.db, cellId),
+  ])
   return {
     id: row.cell.id,
     itemId: row.item.id,
@@ -144,6 +220,9 @@ export async function getCellDetail(
         endedAt: r.endedAt?.toISOString() ?? null,
         outcome: r.outcome,
       })),
+    assignees: assignees.get(cellId) ?? [],
+    comments: commentList,
+    links,
   }
 }
 

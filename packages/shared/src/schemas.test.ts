@@ -52,3 +52,32 @@ describe('schemas', () => {
     expect(setupInput.safeParse({ ...base, timezone: 'Nowhere/City' }).success).toBe(false)
   })
 })
+
+describe('cell detail schemas', () => {
+  it('accepts user or name assignees, dates, and http(s) links only', async () => {
+    const { changeInput } = await import('./schemas')
+    const ok = changeInput.parse({
+      item: 'Login',
+      stage: 'QA',
+      assignees: [{ userId: '01a0df1f-4bae-781f-9f89-589c82c0c93c' }, { name: ' Somchai (Jira) ' }],
+      plannedStart: '2026-10-01',
+      plannedEnd: null,
+      link: { title: 'Spec', url: 'https://example.com/spec' },
+    })
+    expect(ok.assignees).toEqual([
+      { userId: '01a0df1f-4bae-781f-9f89-589c82c0c93c' },
+      { name: 'Somchai (Jira)' },
+    ])
+    expect(ok.link?.kind).toBe('other')
+    expect(
+      changeInput.safeParse({
+        item: 'a',
+        stage: 'b',
+        link: { title: 'x', url: 'javascript:alert(1)' },
+      }).success,
+    ).toBe(false)
+    expect(changeInput.safeParse({ item: 'a', stage: 'b', plannedEnd: '2026-13-01' }).success).toBe(
+      false,
+    )
+  })
+})

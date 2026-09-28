@@ -4,6 +4,7 @@ import { cellEvents, users } from '../db/schema'
 import { computeCellHistory } from '../domain/rounds'
 import { orderDepthFirst } from '../domain/tree'
 import { requireProjectRole } from './access'
+import { loadAssignees, loadCommentsByCell, loadLinksByCell } from './cell-details.service'
 import type { ServiceContext } from './context'
 import { makeResolver } from './refs'
 import { loadCells, loadItems, loadStages } from './structure'
@@ -47,6 +48,12 @@ export async function exportJson(ctx: ServiceContext, ref: string) {
     : []
   const eventsByCell = new Map<string, typeof events>()
   for (const e of events) eventsByCell.set(e.e.cellId, [...(eventsByCell.get(e.e.cellId) ?? []), e])
+  const cellIds = cellRows.map((c) => c.id)
+  const [assignees, commentsByCell, linksByCell] = await Promise.all([
+    loadAssignees(ctx.db, cellIds),
+    loadCommentsByCell(ctx.db, cellIds),
+    loadLinksByCell(ctx.db, cellIds),
+  ])
   const stageName = new Map(stageRows.map((s) => [s.id, s.name]))
   const order = new Map(ordered.map((i, n) => [i.id, n]))
   const stageOrder = new Map(stageRows.map((s, n) => [s.id, n]))
@@ -79,6 +86,17 @@ export async function exportJson(ctx: ServiceContext, ref: string) {
           rework: c.reworkCount,
           plannedStart: c.plannedStart,
           plannedEnd: c.plannedEnd,
+          assignees: (assignees.get(c.id) ?? []).map((a) => a.name),
+          comments: (commentsByCell.get(c.id) ?? []).map((x) => ({
+            by: x.author.name,
+            at: x.createdAt,
+            body: x.body,
+          })),
+          links: (linksByCell.get(c.id) ?? []).map((l) => ({
+            title: l.title,
+            url: l.url,
+            kind: l.kind,
+          })),
           events: evs
             .map(({ e, actorName }) => ({
               from: fromById.get(e.id) ?? 'todo',
