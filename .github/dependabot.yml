@@ -1,0 +1,31 @@
+# Weekly dependency updates. Minor and patch updates are grouped into one PR per ecosystem;
+# major updates come as separate PRs so each breaking change can be reviewed on its own.
+# (Security fixes are separate: Dependabot security updates open those as soon as an advisory appears.)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 breaks tsup's declaration build and typescript-eslint; stay on 6.x until both support it.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore(ci)
+    groups:
+      github-actions:
+        patterns: ['*']
