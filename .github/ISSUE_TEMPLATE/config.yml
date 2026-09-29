@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help with setup
+    url: https://github.com/stagegrid/stagegrid/discussions
+    about: Ask in Discussions — issues are for bugs and feature requests.
+  - name: Security vulnerability
+    url: https://github.com/stagegrid/stagegrid/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
