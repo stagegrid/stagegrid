@@ -89,7 +89,13 @@ pnpm test && pnpm lint && pnpm typecheck
 pnpm build && pnpm e2e
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+## Contributing and support
+
+- Questions and ideas: [Discussions](https://github.com/stagegrid/stagegrid/discussions)
+- Bugs and feature requests: [Issues](https://github.com/stagegrid/stagegrid/issues/new/choose)
+- Pull requests: see [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md)
+- Security problems: report privately, see [SECURITY.md](SECURITY.md)
+- What changed in each version: [Releases](https://github.com/stagegrid/stagegrid/releases)
 
 ## License
 

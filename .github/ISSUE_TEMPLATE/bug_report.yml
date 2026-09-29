@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in Stagegrid doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a project board
+        2. Click …
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Stagegrid version
+      description: '`npm ls @stagegrid/core` in your project, or the Docker image tag'
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it?
+      options:
+        - npx create-stagegrid (Node)
+        - Docker image (ghcr.io/stagegrid/stagegrid)
+        - From source
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, Node and PostgreSQL versions; the AI client if it's about MCP (Claude Code, Cursor, …).
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Server log lines around the error (they include a requestId). Remove tokens, passwords, and private data first.
+      render: text
