@@ -11,7 +11,7 @@ export function errorResponse(
   code: ErrorCode,
   message: string,
   details?: unknown,
-) {
+): Response {
   return c.json(
     {
       error: {
@@ -25,7 +25,7 @@ export function errorResponse(
   )
 }
 
-export function handleError(err: Error, c: Context<AppEnv>) {
+export function handleError(err: Error, c: Context<AppEnv>): Response {
   if (err instanceof AppError) return errorResponse(c, err.code, err.message, err.details)
   if (err instanceof ZodError) {
     return errorResponse(c, 'validation_error', 'Request is invalid', {
