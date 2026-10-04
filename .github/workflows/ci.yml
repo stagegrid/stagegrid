@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+# CI only reads the code; nothing here pushes, comments, or publishes.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
