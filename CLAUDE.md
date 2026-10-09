@@ -38,3 +38,8 @@ pnpm build && pnpm e2e
 - TDD. Service tests use a real Postgres (`test/helpers/db.ts` truncates before each test); build data with `test/helpers/factories.ts`.
 - When fixing a bug, prove the test catches it: revert the fix, see the test fail, restore.
 - Never skip or weaken a test to get green.
+
+## AI employees proposal
+
+For AI employee / Kanban / SDLC work, also read [AGENTS.md](AGENTS.md) for the proposal reading order and decision status. The linked documents are drafts, not shipped capabilities. Existing rules above remain authoritative for coding practices.
+
