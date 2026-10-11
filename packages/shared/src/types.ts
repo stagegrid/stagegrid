@@ -16,6 +16,7 @@ import type {
   SubmissionState,
   TaskAction,
   TaskState,
+  TeamSettings,
   UserStatus,
   Via,
 } from './constants'
@@ -55,6 +56,7 @@ export interface ProjectDto {
   nextRelease: { id: string; name: string; targetDate: string; percent: number } | null
   defaultReleasePhases: { name: string; freeze?: boolean }[]
   delivery: DeliverySettings
+  team: TeamSettings
 }
 
 export interface StageDto {
@@ -333,6 +335,10 @@ export interface DocumentSummaryDto {
   version: number
   updatedAt: string
   updatedBy: string
+  /** Who approved the current version, if anyone. A newer draft starts unapproved. */
+  approval: { version: number; approvedAt: string; approvedBy: string; note: string | null } | null
+  /** Every version a person approved and hasn't withdrawn. */
+  approvedVersions: number[]
 }
 
 export interface DocumentDto extends DocumentSummaryDto {

@@ -506,3 +506,23 @@ export type AnswerQuestionInput = z.infer<typeof answerQuestionInput>
 
 export type SubmissionInput = z.infer<typeof submissionInput>
 export type AcceptTaskInput = z.infer<typeof acceptTaskInput>
+
+// ---- team and approvals
+const employeeIdOrNull = z.uuid().nullable()
+export const teamSettingsInput = z.object({
+  analyst: z.object({
+    enabled: z.boolean(),
+    employeeId: employeeIdOrNull,
+    stageId: employeeIdOrNull,
+  }),
+  dev: z.object({ employeeId: employeeIdOrNull, stageId: employeeIdOrNull }),
+  reviewer: z.object({ enabled: z.boolean(), employeeId: employeeIdOrNull }),
+  qa: z.object({ enabled: z.boolean(), employeeId: employeeIdOrNull, stageId: employeeIdOrNull }),
+  reworkLimit: z.number().int().min(0).max(LIMITS.reworkLimitMax),
+})
+export const approveDocumentInput = z.object({
+  version: z.number().int().min(1),
+  note: z.string().trim().max(LIMITS.approvalNote).optional(),
+})
+export type TeamSettingsInput = z.infer<typeof teamSettingsInput>
+export type ApproveDocumentInput = z.infer<typeof approveDocumentInput>

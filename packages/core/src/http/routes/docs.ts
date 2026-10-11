@@ -1,4 +1,9 @@
-import { docDraftInput, projectDocTemplatesInput, saveDocDraftInput } from '@stagegrid/shared'
+import {
+  approveDocumentInput,
+  docDraftInput,
+  projectDocTemplatesInput,
+  saveDocDraftInput,
+} from '@stagegrid/shared'
 import { type Context, Hono } from 'hono'
 import { z } from 'zod'
 
@@ -27,6 +32,26 @@ const formatSchema = z.enum(['docx', 'md', 'confluence', 'html'])
 const versionSchema = z.coerce.number().int().min(1).optional()
 
 export const docRoutes = new Hono<AppEnv>()
+  .post('/projects/:ref/documents/:id/approve', async (c) =>
+    c.json(
+      await docs.approveDocument(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('id'),
+        await body(c, approveDocumentInput),
+      ),
+    ),
+  )
+  .post('/projects/:ref/documents/:id/revoke-approval', async (c) =>
+    c.json(
+      await docs.revokeApproval(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('id'),
+        (await body(c, z.object({ version: z.number().int().min(1) }))).version,
+      ),
+    ),
+  )
   // ---- templates (admin)
   .get('/admin/templates', async (c) => c.json(await docs.listTemplates(serviceCtx(c))))
   .post('/admin/templates', async (c) => {

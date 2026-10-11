@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   customType,
@@ -9,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -87,4 +89,35 @@ export const documentRevisions = pgTable(
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   (t) => [unique('document_revisions_version_uq').on(t.documentId, t.version)],
+)
+
+/**
+ * A person approving one specific revision of a document. A newer draft never inherits it; withdrawing
+ * is recorded rather than deleted.
+ */
+export const documentApprovals = pgTable(
+  'document_approvals',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    approvedBy: uuid('approved_by')
+      .notNull()
+      .references(() => users.id),
+    approvedAt: ts('approved_at').notNull().defaultNow(),
+    note: text('note'),
+    revokedAt: ts('revoked_at'),
+    revokedBy: uuid('revoked_by').references(() => users.id),
+  },
+  (t) => [
+    index('document_approvals_doc_idx').on(t.documentId, t.version),
+    uniqueIndex('document_approvals_live_uq')
+      .on(t.documentId, t.version)
+      .where(sql`${t.revokedAt} is null`),
+  ],
 )

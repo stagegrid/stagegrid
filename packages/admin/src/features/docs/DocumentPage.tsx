@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 
 import { ErrorState } from '@/components/page-state'
 import { ProjectTabs } from '@/components/project-tabs'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -59,6 +60,7 @@ export function DocumentPage({
   const canEdit = doc.project.role !== 'viewer'
   const latest = doc.revisions[0]?.version ?? doc.version
   const viewingOld = doc.version !== latest
+  const approvedHere = doc.approvedVersions.includes(doc.version)
 
   return (
     <div className="flex min-h-[calc(100svh-3.5rem)] flex-col">
@@ -94,6 +96,30 @@ export function DocumentPage({
               ))}
             </SelectContent>
           </Select>
+          {approvedHere ? (
+            <Badge
+              variant="secondary"
+              title={`Approved by ${doc.approval?.approvedBy ?? 'someone'}${doc.approval ? ` ${relativeTime(doc.approval.approvedAt)}` : ''}`}
+            >
+              Approved
+            </Badge>
+          ) : (
+            <Badge variant="outline">Not approved</Badge>
+          )}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={m.approve.isPending || m.revoke.isPending}
+              onClick={() =>
+                approvedHere
+                  ? m.revoke.mutate(doc.version, { onError })
+                  : m.approve.mutate({ version: doc.version }, { onError })
+              }
+            >
+              {approvedHere ? 'Withdraw approval' : 'Approve this version'}
+            </Button>
+          )}
           {viewingOld && canEdit && (
             <Button
               size="sm"

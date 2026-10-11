@@ -12,6 +12,7 @@ import { MembersSection } from '@/features/settings/MembersSection'
 import { useProject } from '@/features/settings/queries'
 import { ReleasePhasesSection } from '@/features/settings/ReleasePhasesSection'
 import { StagesSection } from '@/features/settings/StagesSection'
+import { TeamSection } from '@/features/settings/TeamSection'
 
 export const Route = createFileRoute('/_app/p/$slug/settings')({
   component: function SettingsRoute() {
@@ -40,6 +41,7 @@ export const Route = createFileRoute('/_app/p/$slug/settings')({
           <MembersSection slug={project.slug} readOnly={readOnly} />
           <EmployeesSection slug={project.slug} readOnly={readOnly} />
           <DeliverySection project={project} readOnly={readOnly} />
+          <TeamSection project={project} readOnly={readOnly} />
           <ReleasePhasesSection project={project} readOnly={readOnly} />
           <DocumentsSection slug={project.slug} readOnly={readOnly} />
           <section className="grid gap-2">

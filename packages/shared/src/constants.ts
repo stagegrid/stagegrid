@@ -74,6 +74,8 @@ export const LIMITS = {
   verificationsPerSubmission: 20,
   verificationCommand: 500,
   verificationOutput: 4000,
+  approvalNote: 1000,
+  reworkLimitMax: 10,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
@@ -203,3 +205,22 @@ export const SUBMISSION_STATES = [
   'changes_requested',
 ] as const
 export type SubmissionState = (typeof SUBMISSION_STATES)[number]
+
+/** The team an item's work is handed along: who does which role, on which stage, and how many rework rounds. */
+export interface TeamSettings {
+  analyst: { enabled: boolean; employeeId: string | null; stageId: string | null }
+  dev: { employeeId: string | null; stageId: string | null }
+  reviewer: { enabled: boolean; employeeId: string | null }
+  qa: { enabled: boolean; employeeId: string | null; stageId: string | null }
+  /** Rework rounds a Reviewer or QA may send back automatically before a person decides (D-11). */
+  reworkLimit: number
+}
+export const DEFAULT_TEAM: TeamSettings = {
+  analyst: { enabled: false, employeeId: null, stageId: null },
+  dev: { employeeId: null, stageId: null },
+  reviewer: { enabled: false, employeeId: null },
+  qa: { enabled: false, employeeId: null, stageId: null },
+  reworkLimit: 2,
+}
+/** Stage names each role works on unless the project maps it elsewhere. */
+export const DEFAULT_ROLE_STAGES = { analyst: 'Document', dev: 'Implement', qa: 'QA' } as const

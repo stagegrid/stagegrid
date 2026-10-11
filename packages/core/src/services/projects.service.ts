@@ -41,6 +41,7 @@ export function toProjectDto(
     nextRelease,
     defaultReleasePhases: p.defaultReleasePhases,
     delivery: p.delivery,
+    team: p.team,
   }
 }
 

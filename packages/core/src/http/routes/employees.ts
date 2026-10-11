@@ -1,9 +1,15 @@
-import { createContextInput, createEmployeeInput, updateEmployeeInput } from '@stagegrid/shared'
+import {
+  createContextInput,
+  createEmployeeInput,
+  teamSettingsInput,
+  updateEmployeeInput,
+} from '@stagegrid/shared'
 import { Hono } from 'hono'
 
 import * as employees from '../../services/employees.service'
 import * as questions from '../../services/questions.service'
 import * as contexts from '../../services/tasks.service'
+import * as team from '../../services/team.service'
 import { body, serviceCtx } from '../context'
 import type { AppEnv } from '../env'
 
@@ -25,6 +31,11 @@ export const employeeRoutes = new Hono<AppEnv>()
         await body(c, createEmployeeInput),
       ),
       201,
+    ),
+  )
+  .put('/projects/:ref/team', async (c) =>
+    c.json(
+      await team.updateTeam(serviceCtx(c), c.req.param('ref'), await body(c, teamSettingsInput)),
     ),
   )
   .get(`${base}/:id`, async (c) =>

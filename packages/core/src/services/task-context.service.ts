@@ -21,6 +21,7 @@ import { notify } from '../realtime/notify'
 import { type ProjectRow, requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
+import { isApproved } from './docs.service'
 import { loadTaskInProject } from './task-access'
 
 type ContextRow = typeof taskContextRevisions.$inferSelect
@@ -164,6 +165,16 @@ export async function readinessReasons(
     for (const d of ctx.manifest.documents)
       if (!liveIds.has(d.documentId))
         reasons.push(`"${d.title}" is no longer available. Pin the context again without it.`)
+    // With the analyst workflow on, the work follows approved requirements only.
+    if (project.team.analyst.enabled) {
+      for (const d of ctx.manifest.documents) {
+        if (!liveIds.has(d.documentId)) continue
+        if (!(await isApproved(db, d.documentId, d.version)))
+          reasons.push(
+            `"${d.title}" (version ${d.version}) isn't approved yet. A person approves that version first.`,
+          )
+      }
+    }
   }
   if (
     ctx.manifest.documents.length + ctx.manifest.sources.length + ctx.manifest.decisions.length ===

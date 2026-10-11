@@ -30,6 +30,7 @@ import {
   cellLinks,
   cells,
   docTemplates,
+  documentApprovals,
   documentRevisions,
   documents,
   projectDocTemplates,
@@ -474,9 +475,33 @@ async function summaries(
   for (const rid of new Set(rows.map((r) => r.releaseId).filter((x): x is string => !!x))) {
     releaseNames.set(rid, (await getRelease(ctx, project.id, rid)).name)
   }
+  const approvalRows = await ctx.db
+    .select({ a: documentApprovals, name: users.name })
+    .from(documentApprovals)
+    .innerJoin(users, eq(users.id, documentApprovals.approvedBy))
+    .where(
+      and(
+        inArray(
+          documentApprovals.documentId,
+          rows.map((r) => r.id),
+        ),
+        isNull(documentApprovals.revokedAt),
+      ),
+    )
   return rows.map((d) => {
     const t = templateById.get(d.templateId)!
+    const approvals = approvalRows.filter((x) => x.a.documentId === d.id)
+    const current = approvals.find((x) => x.a.version === d.version)
     return {
+      approval: current
+        ? {
+            version: current.a.version,
+            approvedAt: current.a.approvedAt.toISOString(),
+            approvedBy: current.name,
+            note: current.a.note,
+          }
+        : null,
+      approvedVersions: approvals.map((x) => x.a.version).sort((a, b) => a - b),
       id: d.id,
       title: d.title,
       template: { id: t.id, key: t.key, name: t.name },
@@ -857,4 +882,98 @@ export async function revisionMarkdown(
     author: '',
   })
   return renderMarkdown(model)
+}
+
+/** Has a person approved exactly this revision, and not withdrawn it? */
+export async function isApproved(
+  db: DbOrTx,
+  documentId: string,
+  version: number,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: documentApprovals.id })
+    .from(documentApprovals)
+    .where(
+      and(
+        eq(documentApprovals.documentId, documentId),
+        eq(documentApprovals.version, version),
+        isNull(documentApprovals.revokedAt),
+      ),
+    )
+  return !!row
+}
+
+/**
+ * A person approves one revision of a document: who, when and which version. A later draft doesn't
+ * inherit it, and an AI employee has no way to approve (approval is a project member's action).
+ */
+export async function approveDocument(
+  ctx: ServiceContext,
+  ref: string,
+  id: string,
+  input: { version: number; note?: string },
+): Promise<DocumentSummaryDto> {
+  const { project, actor } = await requireProjectRole(ctx, ref, 'editor')
+  await withTx(ctx, async (tx, txCtx) => {
+    const d = await findDocument(tx, project.id, id)
+    const [revision] = await tx
+      .select({ version: documentRevisions.version })
+      .from(documentRevisions)
+      .where(
+        and(eq(documentRevisions.documentId, d.id), eq(documentRevisions.version, input.version)),
+      )
+    if (!revision) throw notFound(`Version ${input.version} not found`)
+    if (await isApproved(tx, d.id, input.version)) return
+    await tx.insert(documentApprovals).values({
+      id: newId(),
+      projectId: project.id,
+      documentId: d.id,
+      version: input.version,
+      approvedBy: actor.userId,
+      approvedAt: ctx.now(),
+      note: input.note ?? null,
+    })
+    await audit(tx, txCtx, {
+      projectId: project.id,
+      action: 'document.approve',
+      targetType: 'document',
+      targetId: d.id,
+      after: { version: input.version, title: d.title },
+    })
+    await notify(tx, txCtx, project.id, 'document.approved', { documentId: d.id })
+  })
+  return (await summaries(ctx, project, [await findDocument(ctx.db, project.id, id)]))[0]!
+}
+
+export async function revokeApproval(
+  ctx: ServiceContext,
+  ref: string,
+  id: string,
+  version: number,
+): Promise<DocumentSummaryDto> {
+  const { project, actor } = await requireProjectRole(ctx, ref, 'editor')
+  await withTx(ctx, async (tx, txCtx) => {
+    const d = await findDocument(tx, project.id, id)
+    const [row] = await tx
+      .update(documentApprovals)
+      .set({ revokedAt: ctx.now(), revokedBy: actor.userId })
+      .where(
+        and(
+          eq(documentApprovals.documentId, d.id),
+          eq(documentApprovals.version, version),
+          isNull(documentApprovals.revokedAt),
+        ),
+      )
+      .returning()
+    if (!row) throw conflict(`Version ${version} isn't approved.`)
+    await audit(tx, txCtx, {
+      projectId: project.id,
+      action: 'document.revoke_approval',
+      targetType: 'document',
+      targetId: d.id,
+      after: { version },
+    })
+    await notify(tx, txCtx, project.id, 'document.approved', { documentId: d.id })
+  })
+  return (await summaries(ctx, project, [await findDocument(ctx.db, project.id, id)]))[0]!
 }
