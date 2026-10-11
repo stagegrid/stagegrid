@@ -43,3 +43,10 @@ export const TASK_STATE_DOT: Record<TaskState, string> = {
   done: 'bg-status-done',
   cancelled: 'bg-status-skip',
 }
+
+/** Steps the system takes on a task as its runs progress. */
+export const SYSTEM_ACTION_LABEL: Record<string, string> = {
+  claim: 'Run started',
+  run_succeeded: 'Run finished',
+  run_cancelled: 'Run cancelled',
+}

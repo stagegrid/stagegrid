@@ -132,7 +132,10 @@ function toTaskDto(t: TaskRow, lookups: TaskLookups): TaskDto {
     employee: t.employeeId ? (lookups.employees.get(t.employeeId) ?? null) : null,
     context: lookups.contexts.get(t.id) ?? null,
     run: lookups.runs.get(t.id) ?? null,
-    actions: availableActions(t.state),
+    // An employee's task is started and submitted by its runs, not by hand.
+    actions: availableActions(t.state).filter(
+      (a) => !(t.employeeId && (a === 'start' || a === 'submit')),
+    ),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   }

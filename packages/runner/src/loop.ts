@@ -100,6 +100,7 @@ export class RunnerLoop {
         }
         throw e
       }
+      this.log(`claimed run ${q.id}: ${q.taskTitle} (attempt ${q.attempt}, ${q.provider})`)
       const controller = new AbortController()
       this.active.set(q.id, controller)
       const task = this.execute(claim, controller)
@@ -131,8 +132,11 @@ export class RunnerLoop {
     let leaseLost = false
     let sequence = 0
 
-    const complete = (body: Omit<CompleteBody, 'fencingToken' | 'idempotencyKey'>) =>
-      withRetry(() =>
+    const complete = (body: Omit<CompleteBody, 'fencingToken' | 'idempotencyKey'>) => {
+      this.log(
+        `run ${runId}: ${body.outcome}${body.failureReason ? ` (${body.failureReason})` : ''}`,
+      )
+      return withRetry(() =>
         api.complete(runId, {
           ...body,
           fencingToken: token,
@@ -144,6 +148,7 @@ export class RunnerLoop {
           if (e instanceof RunnerApiError && e.isStaleLease) return
           throw e
         })
+    }
 
     const send = async (type: RunEventBody['type'], payload: Record<string, unknown>) => {
       sequence += 1

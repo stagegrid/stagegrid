@@ -104,6 +104,10 @@ export function useProjectStream(slug: string): { connected: boolean } {
       void queryClient.invalidateQueries({ queryKey: ['task', slug] })
       void queryClient.invalidateQueries({ queryKey: ['task-context', slug] })
     })
+    source.addEventListener('run.updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['task', slug] })
+    })
     source.addEventListener('employee.updated', () => {
       void queryClient.invalidateQueries({ queryKey: ['employees', slug] })
       void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })

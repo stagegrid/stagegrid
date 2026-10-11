@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBoard } from '@/features/board/queries'
+import { useProjectStream } from '@/features/board/useProjectStream'
 import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
+import { isActiveRun, needsAttention, RUN_STATE_LABEL } from '@/features/runs/status'
 import { useProject } from '@/features/settings/queries'
 import { cn } from '@/lib/utils'
 
@@ -39,11 +41,23 @@ function TaskCard({ task, onOpen }: { task: BoardTaskDto; onOpen: () => void }) 
         {task.owner && <span className="text-muted-foreground ml-auto">{task.owner.name}</span>}
       </span>
       {task.employee && <EmployeeBadge employee={task.employee} />}
+      {task.run && (isActiveRun(task.run.state) || needsAttention(task.run.state)) && (
+        <span
+          className={cn(
+            'text-xs',
+            needsAttention(task.run.state) ? 'text-destructive' : 'text-muted-foreground',
+          )}
+        >
+          {RUN_STATE_LABEL[task.run.state]}
+        </span>
+      )}
     </button>
   )
 }
 
 export function TasksPage({ slug }: { slug: string }) {
+  // Runs finish while you watch: keep tasks and cells live.
+  useProjectStream(slug)
   const { data: project } = useProject(slug)
   const { data: board } = useBoard(slug)
   const { data: tasks, isLoading, error, refetch } = useTasks(slug)

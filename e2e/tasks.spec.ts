@@ -1,3 +1,9 @@
+import { execFileSync, spawn } from 'node:child_process'
+import { openSync } from 'node:fs'
+import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { expect, test } from '@playwright/test'
 
 import { signIn } from './fixtures'
@@ -7,6 +13,7 @@ test.describe.configure({ mode: 'serial' })
 test('a stage follows its tasks: accept to finish, reopen with a reason to rework', async ({
   page,
 }) => {
+  test.setTimeout(120_000)
   await signIn(page)
   await page.goto('/p/clinic-os')
   await page.getByRole('button', { name: /^Reports, Deploy:/ }).click()
@@ -78,5 +85,84 @@ test('a stage follows its tasks: accept to finish, reopen with a reason to rewor
   await page.getByRole('dialog').getByRole('button', { name: 'Pin context' }).click()
   await expect(page.getByText('Revision 1')).toBeVisible()
   await page.getByRole('button', { name: 'Mark ready' }).click()
-  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start run' })).toBeVisible()
+
+  // A runner: enrol it with a token from the Runners page, point it at a repo, and let it do the work.
+  await page.goto('/admin/runners')
+  await page.getByRole('button', { name: 'Add runner' }).first().click()
+  await page.getByLabel('Name', { exact: true }).fill('e2e-box')
+  await page.getByRole('dialog').getByRole('checkbox').first().click()
+  await page.getByRole('button', { name: 'Create token' }).click()
+  const command = await page.getByLabel('Enrollment command', { exact: true }).textContent()
+  const token = /--token (\S+)/.exec(command ?? '')![1]!
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  const dir = await mkdtemp(join(tmpdir(), 'sg-e2e-runner-'))
+  const configPath = join(dir, 'config.json')
+  const runner = (...args: string[]) =>
+    execFileSync(
+      process.execPath,
+      ['packages/runner/dist/cli.js', ...args, '--config', configPath],
+      {
+        encoding: 'utf8',
+      },
+    )
+  runner('enroll', '--url', 'http://localhost:4173', '--token', token)
+
+  const repo = join(dir, 'clinic-os')
+  const git = (...a: string[]) => execFileSync('git', a, { cwd: repo })
+  execFileSync('git', ['init', '-b', 'main', repo])
+  git('config', 'user.email', 'e2e@example.com')
+  git('config', 'user.name', 'E2E')
+  await writeFile(join(repo, 'README.md'), 'clinic\n')
+  git('add', '.')
+  git('commit', '-m', 'init')
+  runner('repo', 'clinic-os', repo)
+
+  // A stand-in for `claude`: edits and commits in the worktree, then answers in Claude's format.
+  const fake = join(dir, 'claude')
+  await writeFile(
+    fake,
+    `#!${process.execPath}
+const { execSync } = require('node:child_process')
+const out = (e) => process.stdout.write(JSON.stringify(e) + '\\n')
+require('node:fs').writeFileSync('login.txt', 'email login\\n')
+execSync('git add -A && git commit -q -m "feat: email login"')
+const commit = execSync('git rev-parse HEAD').toString().trim()
+out({ type: 'assistant', message: { content: [{ type: 'text', text: 'Implemented email login' }] } })
+out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'submitted', summary: 'Email login done', commit, tests: '3 passed' } })
+`,
+  )
+  await chmod(fake, 0o755)
+  const config = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>
+  config.providers = { claude_code: { bin: fake } }
+  await writeFile(configPath, JSON.stringify(config))
+
+  const worker = spawn(
+    process.execPath,
+    ['packages/runner/dist/cli.js', 'start', '--config', configPath],
+    {
+      stdio: ['ignore', openSync(`${dir}/runner.log`, 'w'), openSync(`${dir}/runner.log`, 'a')],
+    },
+  )
+  try {
+    await expect(async () => {
+      await page.goto('/admin/runners')
+      await expect(page.getByText('e2e-box')).toBeVisible()
+      await expect(page.getByText('Online', { exact: true })).toBeVisible()
+    }).toPass({ timeout: 15_000 })
+
+    await page.goto('/p/clinic-os/tasks')
+    await page.getByRole('button', { name: /^Email login/ }).click()
+    await page.getByRole('button', { name: 'Start run' }).click()
+    // The run finishes on the runner; the sheet updates by itself.
+    await expect(page.getByText('Finished', { exact: true })).toBeVisible({ timeout: 25_000 })
+    await page.getByRole('button', { name: 'Accept', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('region', { name: 'Done' }).getByText('Email login')).toBeVisible()
+    expect(git('branch', '--list', 'stagegrid/*').toString()).toMatch(/stagegrid\/task-/)
+  } finally {
+    worker.kill('SIGINT')
+  }
 })

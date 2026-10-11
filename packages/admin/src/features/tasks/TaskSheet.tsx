@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
+import { RunPanel } from '@/features/runs/RunPanel'
 import { formatDateTime, relativeTime } from '@/lib/format'
 
 import { taskQuery } from './queries'
-import { TASK_ACTION_LABEL, TASK_STATE_LABEL } from './status'
+import { SYSTEM_ACTION_LABEL, TASK_ACTION_LABEL, TASK_STATE_LABEL } from './status'
 import { TaskActions } from './TaskActions'
 import { TaskContext } from './TaskContext'
 
@@ -54,6 +55,9 @@ export function TaskSheet({
             </div>
             {task.employee && <EmployeeBadge employee={task.employee} />}
             {task.employee && <TaskContext slug={slug} task={task} canEdit={canEdit} />}
+            {task.employee && (
+              <RunPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
+            )}
             <TaskActions slug={slug} task={task} canEdit={canEdit} />
             {task.scope && (
               <section className="grid gap-1">
@@ -84,7 +88,8 @@ export function TaskSheet({
                       <span>
                         {e.action === 'create'
                           ? 'Created'
-                          : (TASK_ACTION_LABEL[e.action as keyof typeof TASK_ACTION_LABEL] ??
+                          : (SYSTEM_ACTION_LABEL[e.action] ??
+                            TASK_ACTION_LABEL[e.action as keyof typeof TASK_ACTION_LABEL] ??
                             e.action)}
                       </span>
                       <span
