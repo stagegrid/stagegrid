@@ -1,7 +1,13 @@
-import type { TaskState } from '@stagegrid/shared'
+import { TASK_ACTIONS_NEEDING_REASON, type TaskState } from '@stagegrid/shared'
 import { describe, expect, it } from 'vitest'
 
-import { aggregateCellStatus, availableActions, isActiveTask, resolveTransition } from './tasks'
+import {
+  aggregateCellStatus,
+  availableActions,
+  isActiveTask,
+  resolveTransition,
+  TASK_TRANSITIONS,
+} from './tasks'
 
 const req = (state: TaskState) => ({ state, required: true })
 
@@ -92,5 +98,14 @@ describe('availableActions', () => {
       'request_changes',
       'cancel',
     ])
+  })
+})
+
+describe('shared reason list', () => {
+  it('matches the actions that require a reason', () => {
+    const required = (Object.keys(TASK_TRANSITIONS) as (keyof typeof TASK_TRANSITIONS)[]).filter(
+      (a) => TASK_TRANSITIONS[a].reasonRequired,
+    )
+    expect([...TASK_ACTIONS_NEEDING_REASON].sort()).toEqual(required.sort())
   })
 })

@@ -81,3 +81,10 @@ export const TASK_ACTIONS = [
   'restore',
 ] as const
 export type TaskAction = (typeof TASK_ACTIONS)[number]
+
+/** Actions that change committed work, so the person must say why. */
+export const TASK_ACTIONS_NEEDING_REASON: readonly TaskAction[] = [
+  'request_changes',
+  'reopen',
+  'cancel',
+]

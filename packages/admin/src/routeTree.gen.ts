@@ -22,6 +22,7 @@ import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as PrintSlugDocIdRouteImport } from './routes/print.$slug.$docId'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
 import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
+import { Route as AppPSlugTasksRouteImport } from './routes/_app.p.$slug.tasks'
 import { Route as AppPSlugTimelineRouteImport } from './routes/_app.p.$slug.timeline'
 import { Route as AppPSlugDocsIndexRouteImport } from './routes/_app.p.$slug.docs.index'
 import { Route as AppPSlugDocsDocIdRouteImport } from './routes/_app.p.$slug.docs.$docId'
@@ -92,6 +93,11 @@ const AppPSlugSettingsRoute = AppPSlugSettingsRouteImport.update({
   path: '/p/$slug/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPSlugTasksRoute = AppPSlugTasksRouteImport.update({
+  id: '/p/$slug/tasks',
+  path: '/p/$slug/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPSlugTimelineRoute = AppPSlugTimelineRouteImport.update({
   id: '/p/$slug/timeline',
   path: '/p/$slug/timeline',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
   '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug': typeof AppPSlugIndexRoute
   '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/_app/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/_app/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
   '/_app/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
+    | '/p/$slug/tasks'
     | '/p/$slug/timeline'
     | '/p/$slug/'
     | '/p/$slug/docs/$docId'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
+    | '/p/$slug/tasks'
     | '/p/$slug/timeline'
     | '/p/$slug'
     | '/p/$slug/docs/$docId'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/_app/admin/users'
     | '/print/$slug/$docId'
     | '/_app/p/$slug/settings'
+    | '/_app/p/$slug/tasks'
     | '/_app/p/$slug/timeline'
     | '/_app/p/$slug/'
     | '/_app/p/$slug/docs/$docId'
@@ -342,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPSlugSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/p/$slug/tasks': {
+      id: '/_app/p/$slug/tasks'
+      path: '/p/$slug/tasks'
+      fullPath: '/p/$slug/tasks'
+      preLoaderRoute: typeof AppPSlugTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/p/$slug/timeline': {
       id: '/_app/p/$slug/timeline'
       path: '/p/$slug/timeline'
@@ -386,6 +405,7 @@ interface AppRouteChildren {
   AppAdminTemplatesRoute: typeof AppAdminTemplatesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
+  AppPSlugTasksRoute: typeof AppPSlugTasksRoute
   AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
   AppPSlugDocsDocIdRoute: typeof AppPSlugDocsDocIdRoute
@@ -400,6 +420,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminTemplatesRoute: AppAdminTemplatesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
+  AppPSlugTasksRoute: AppPSlugTasksRoute,
   AppPSlugTimelineRoute: AppPSlugTimelineRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
   AppPSlugDocsDocIdRoute: AppPSlugDocsDocIdRoute,

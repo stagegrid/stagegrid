@@ -99,6 +99,10 @@ export function useProjectStream(slug: string): { connected: boolean } {
     ]) {
       source.addEventListener(type, refetchBoard)
     }
+    source.addEventListener('task.updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['task', slug] })
+    })
     source.addEventListener('release.updated', () => {
       refetchBoard()
       void queryClient.invalidateQueries({ queryKey: ['releases', slug] })
