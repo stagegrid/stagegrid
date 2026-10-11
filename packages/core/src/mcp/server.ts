@@ -6,6 +6,7 @@ import { guideText, syncText, writeDocumentText } from './skill'
 import { registerDocTools } from './tools/docs'
 import { registerReadTools } from './tools/read'
 import { registerReleaseTools } from './tools/releases'
+import { registerTaskTools } from './tools/tasks'
 import { registerWriteTools } from './tools/write'
 
 export const MCP_SERVER_INFO = { name: 'stagegrid', version: '0.2.0' }
@@ -19,6 +20,7 @@ export function createMcpServer(ctx: ServiceContext): McpServer {
   registerReadTools(server, ctx)
   registerWriteTools(server, ctx)
   registerReleaseTools(server, ctx)
+  registerTaskTools(server, ctx)
   registerDocTools(server, ctx)
 
   server.registerResource(

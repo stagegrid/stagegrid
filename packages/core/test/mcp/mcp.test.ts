@@ -53,6 +53,7 @@ describe('MCP endpoint', () => {
       'create_items',
       'create_project',
       'create_release',
+      'create_task',
       'delete_item',
       'edit_event',
       'get_board',
@@ -68,12 +69,15 @@ describe('MCP endpoint', () => {
       'list_projects',
       'list_releases',
       'list_stale_cells',
+      'list_tasks',
       'manage_stages',
       'mark_release_released',
       'move_item',
       'remove_release_items',
       'render_doc',
       'save_doc_draft',
+      'set_cell_progress_mode',
+      'task_action',
       'update_item',
       'update_release',
     ])
@@ -301,5 +305,41 @@ describe('MCP cell details', () => {
       stage: 'QA',
     })
     expect(after.status).toBe('todo')
+  })
+  it('manages a cell through tasks and reports conflicts on direct writes', async () => {
+    const { client } = await world()
+    await call(client, 'set_cell_progress_mode', {
+      project: 'clinic-os',
+      item: 'Login',
+      stage: 'Implement',
+      mode: 'tasks',
+    })
+    const created = await call<{ id: string; version: number }>(client, 'create_task', {
+      project: 'clinic-os',
+      item: 'Login',
+      stage: 'Implement',
+      title: 'Email login',
+    })
+    let version = created.version
+    for (const action of ['mark_ready', 'start']) {
+      const r = await call<{ version: number; cellStatus: string }>(client, 'task_action', {
+        project: 'clinic-os',
+        task: created.id,
+        action,
+        version,
+      })
+      version = r.version
+    }
+    const listed = await call<{ title: string; state: string }[]>(client, 'list_tasks', {
+      project: 'clinic-os',
+    })
+    expect(listed[0]).toMatchObject({ title: 'Email login', state: 'in_progress' })
+    await expect(
+      call(client, 'apply_changes', {
+        project: 'clinic-os',
+        dryRun: false,
+        changes: [{ item: 'Login', stage: 'Implement', status: 'done' }],
+      }),
+    ).rejects.toThrow(/comes from its tasks/)
   })
 })
