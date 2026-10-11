@@ -44,7 +44,40 @@ export const LIMITS = {
   linkUrl: 2000,
   assigneeName: 100,
   assigneesPerCell: 20,
+  taskTitle: 200,
+  taskScope: 10_000,
+  acceptanceCriteria: 50,
+  acceptanceCriterion: 500,
+  tasksPerCell: 200,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
 export type LinkKind = (typeof LINK_KINDS)[number]
+
+/** How a cell's status is decided: written directly (`manual`) or derived from its tasks (`tasks`). */
+export const CELL_PROGRESS_MODES = ['manual', 'tasks'] as const
+export type CellProgressMode = (typeof CELL_PROGRESS_MODES)[number]
+
+export const TASK_STATES = [
+  'draft',
+  'ready',
+  'in_progress',
+  'waiting_for_answer',
+  'ready_for_acceptance',
+  'changes_requested',
+  'done',
+  'cancelled',
+] as const
+export type TaskState = (typeof TASK_STATES)[number]
+
+export const TASK_ACTIONS = [
+  'mark_ready',
+  'start',
+  'submit',
+  'accept',
+  'request_changes',
+  'reopen',
+  'cancel',
+  'restore',
+] as const
+export type TaskAction = (typeof TASK_ACTIONS)[number]
