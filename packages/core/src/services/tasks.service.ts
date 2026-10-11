@@ -9,11 +9,12 @@ import type {
   TaskContextSummaryDto,
   TaskDetailDto,
   TaskDto,
+  TaskRunSummaryDto,
   TaskState,
   UpdateTaskInput,
 } from '@stagegrid/shared'
 import { LIMITS } from '@stagegrid/shared'
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import type { DbOrTx, Tx } from '../db/client'
 import {
@@ -22,6 +23,8 @@ import {
   employees,
   items,
   projectMembers,
+  runners,
+  runs,
   stages,
   taskEvents,
   tasks,
@@ -53,12 +56,13 @@ interface TaskLookups {
   owners: Map<string, string>
   employees: Map<string, EmployeeRefDto>
   contexts: Map<string, TaskContextSummaryDto>
+  runs: Map<string, TaskRunSummaryDto>
 }
 
 async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
   const userIds = [...new Set(rows.flatMap((t) => (t.ownerUserId ? [t.ownerUserId] : [])))]
   const employeeIds = [...new Set(rows.flatMap((t) => (t.employeeId ? [t.employeeId] : [])))]
-  const [owners, staff, contexts] = await Promise.all([
+  const [owners, staff, contexts, runRows] = await Promise.all([
     userIds.length
       ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, userIds))
       : [],
@@ -77,11 +81,38 @@ async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
       db,
       rows.map((t) => t.id),
     ),
+    rows.length
+      ? db
+          .select({ run: runs, runnerName: runners.name })
+          .from(runs)
+          .leftJoin(runners, eq(runners.id, runs.runnerId))
+          .where(
+            inArray(
+              runs.taskId,
+              rows.map((t) => t.id),
+            ),
+          )
+          .orderBy(desc(runs.attempt))
+      : [],
   ])
+  const latestRuns = new Map<string, TaskRunSummaryDto>()
+  for (const { run, runnerName } of runRows) {
+    if (latestRuns.has(run.taskId)) continue
+    latestRuns.set(run.taskId, {
+      id: run.id,
+      state: run.state,
+      attempt: run.attempt,
+      runnerName,
+      failureReason: run.failureReason,
+      resumeAt: run.resumeAt?.toISOString() ?? null,
+      updatedAt: run.updatedAt.toISOString(),
+    })
+  }
   return {
     owners: new Map(owners.map((u) => [u.id, u.name])),
     employees: new Map(staff.map((e) => [e.id, e])),
     contexts,
+    runs: latestRuns,
   }
 }
 
@@ -100,6 +131,7 @@ function toTaskDto(t: TaskRow, lookups: TaskLookups): TaskDto {
       : null,
     employee: t.employeeId ? (lookups.employees.get(t.employeeId) ?? null) : null,
     context: lookups.contexts.get(t.id) ?? null,
+    run: lookups.runs.get(t.id) ?? null,
     actions: availableActions(t.state),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
@@ -465,6 +497,44 @@ function staleVersion(currentVersion: number) {
   })
 }
 
+/**
+ * Moves a task between states on behalf of the system (a run being claimed, finished or cancelled).
+ * Same bookkeeping as a person's action: version, event, audit, cell status and realtime.
+ */
+export async function moveTaskState(
+  tx: Tx,
+  ctx: ServiceContext,
+  project: ProjectRow,
+  current: TaskRow,
+  to: TaskState,
+  action: string,
+  reason: string,
+): Promise<TaskRow> {
+  const [row] = await tx
+    .update(tasks)
+    .set({ state: to, version: current.version + 1, updatedAt: ctx.now() })
+    .where(and(eq(tasks.id, current.id), eq(tasks.version, current.version)))
+    .returning()
+  if (!row) throw staleVersion(current.version)
+  await recordEvent(tx, ctx, current.id, {
+    fromState: current.state,
+    toState: to,
+    action,
+    reason,
+  })
+  await audit(tx, ctx, {
+    projectId: project.id,
+    action: `task.${action}`,
+    targetType: 'task',
+    targetId: current.id,
+    before: { state: current.state },
+    after: { state: to, reason },
+  })
+  await syncCellFromTasks(tx, ctx, project, row.cellId, `Task "${row.title}": ${reason}`)
+  await notify(tx, ctx, project.id, 'task.updated', { taskId: row.id, cellId: row.cellId })
+  return row
+}
+
 const ACTION_VERB: Record<TaskActionInput['action'], string> = {
   mark_ready: 'marked ready',
   start: 'started',
@@ -490,6 +560,13 @@ export async function transitionTask(
       throw conflict(
         `Can't ${input.action.replace('_', ' ')} a task that is ${current.state.replace(/_/g, ' ')}.`,
         { code: 'invalid_transition', state: current.state, allowedFrom: t.allowedFrom },
+      )
+    if (current.employeeId && (input.action === 'start' || input.action === 'submit'))
+      throw conflict(
+        input.action === 'start'
+          ? 'This task is assigned to an AI employee. Start a run instead.'
+          : "An AI employee submits its own work. Cancel the run if it can't finish.",
+        { code: 'employee_task' },
       )
     if (t.reasonRequired && !input.reason)
       throw invalid('Say why: a reason is required for this action')

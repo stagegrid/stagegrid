@@ -59,6 +59,12 @@ export const LIMITS = {
   contextSourceContent: 100_000,
   contextDecisions: 50,
   contextDecision: 1000,
+  runnerName: 100,
+  runnerProjects: 100,
+  runEventPayload: 20_000,
+  runSummary: 20_000,
+  runFailure: 2000,
+  idempotencyKey: 200,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
@@ -105,3 +111,35 @@ export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number]
 /** AI runtimes an employee can work through. */
 export const EMPLOYEE_PROVIDERS = ['claude_code', 'codex'] as const
 export type EmployeeProvider = (typeof EMPLOYEE_PROVIDERS)[number]
+
+export const RUN_STATES = [
+  'queued',
+  'running',
+  'waiting_for_answer',
+  'waiting_for_capacity',
+  'succeeded',
+  'failed',
+  'cancelled',
+  'interrupted',
+] as const
+export type RunState = (typeof RUN_STATES)[number]
+
+/** A task has at most one run in these states. */
+export const ACTIVE_RUN_STATES: readonly RunState[] = [
+  'queued',
+  'running',
+  'waiting_for_answer',
+  'waiting_for_capacity',
+]
+
+/** A claim lasts this long without a heartbeat or event; the runner renews it. */
+export const RUN_LEASE_SECONDS = 90
+/** A runner that hasn't polled for this long is treated as offline. */
+export const RUNNER_ONLINE_SECONDS = 120
+export const RUNNER_ENROLLMENT_MINUTES = 60
+
+export const RUN_EVENT_TYPES = ['progress', 'log', 'session'] as const
+export type RunEventType = (typeof RUN_EVENT_TYPES)[number]
+
+export const RUN_OUTCOMES = ['succeeded', 'failed', 'interrupted'] as const
+export type RunOutcome = (typeof RUN_OUTCOMES)[number]

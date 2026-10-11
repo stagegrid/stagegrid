@@ -9,6 +9,8 @@ import {
   LINK_KINDS,
   PATH_SEPARATOR,
   PROJECT_ROLES,
+  RUN_EVENT_TYPES,
+  RUN_OUTCOMES,
   TASK_ACTIONS,
   TASK_STATES,
 } from './constants'
@@ -353,3 +355,61 @@ export const createContextInput = z.object({
 export type CreateEmployeeInput = z.infer<typeof createEmployeeInput>
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeInput>
 export type CreateContextInput = z.infer<typeof createContextInput>
+
+// ---- runs and runners
+const idempotencyKey = z.string().trim().min(1).max(LIMITS.idempotencyKey)
+
+export const startRunInput = z.object({
+  expectedVersion: z.number().int().min(1),
+  contextRevisionId: z.uuid(),
+  idempotencyKey,
+})
+export const cancelRunInput = z.object({ reason: z.string().trim().max(LIMITS.reason).optional() })
+
+export const createEnrollmentInput = z.object({
+  name: nameSchema(LIMITS.runnerName),
+  projectIds: z.array(z.uuid()).min(1).max(LIMITS.runnerProjects),
+})
+export const enrollRunnerInput = z.object({
+  token: z.string().min(1).max(200),
+  providers: z.array(z.string().min(1).max(50)).max(10).default([]),
+  version: z.string().max(50).optional(),
+})
+export const updateRunnerInput = z.object({
+  name: nameSchema(LIMITS.runnerName).optional(),
+  projectIds: z.array(z.uuid()).min(1).max(LIMITS.runnerProjects).optional(),
+  maxConcurrent: z.number().int().min(1).max(20).optional(),
+})
+export const runnerSelfInput = z.object({
+  providers: z.array(z.string().min(1).max(50)).max(10),
+  version: z.string().max(50).optional(),
+})
+export const claimRunInput = z.object({ idempotencyKey })
+export const fencedInput = z.object({ fencingToken: z.number().int().min(1) })
+export const runEventInput = z.object({
+  eventId: z.string().trim().min(1).max(200),
+  sequence: z.number().int().min(1),
+  type: z.enum(RUN_EVENT_TYPES),
+  payload: z
+    .record(z.string(), z.unknown())
+    .default({})
+    .refine((p) => JSON.stringify(p).length <= LIMITS.runEventPayload, 'Payload is too large'),
+  fencingToken: z.number().int().min(1),
+})
+export const completeRunInput = z.object({
+  fencingToken: z.number().int().min(1),
+  idempotencyKey,
+  outcome: z.enum(RUN_OUTCOMES),
+  summary: z.string().trim().max(LIMITS.runSummary).optional(),
+  failureReason: z.string().trim().max(LIMITS.runFailure).optional(),
+})
+
+export type StartRunInput = z.infer<typeof startRunInput>
+export type CancelRunInput = z.infer<typeof cancelRunInput>
+export type CreateEnrollmentInput = z.infer<typeof createEnrollmentInput>
+export type EnrollRunnerInput = z.infer<typeof enrollRunnerInput>
+export type UpdateRunnerInput = z.infer<typeof updateRunnerInput>
+export type RunnerSelfInput = z.infer<typeof runnerSelfInput>
+export type ClaimRunInput = z.infer<typeof claimRunInput>
+export type RunEventInput = z.infer<typeof runEventInput>
+export type CompleteRunInput = z.infer<typeof completeRunInput>

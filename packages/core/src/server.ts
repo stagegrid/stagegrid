@@ -10,10 +10,12 @@ import { createRateLimiter } from './http/middleware/rate-limit'
 import { SseHub } from './realtime/hub'
 import { startListener } from './realtime/listener'
 import { ensureBuiltinTemplates } from './services/docs.service'
+import { expireLeases } from './services/runs.service'
 import { needsSetup } from './services/settings.service'
 
 const RETRIES = 10
 const RETRY_DELAY_MS = 2000
+const LEASE_SWEEP_MS = 30_000
 
 /** Built admin SPA shipped inside the package (dist/admin next to dist/cli.js). */
 export function defaultStaticDir(): string {
@@ -67,11 +69,20 @@ export async function startServer(
   if (await needsSetup(database.db))
     logger.info(`Open ${config.appUrl}/setup to create the first admin`)
 
+  // Runs whose runner went quiet are interrupted here, so a crashed runner never leaves a task "running".
+  const sweep = setInterval(() => {
+    expireLeases({ db: database.db, actor: null, now: () => new Date(), config }).catch((err) =>
+      logger.warn({ err: (err as Error).message }, 'lease sweep failed'),
+    )
+  }, LEASE_SWEEP_MS)
+  sweep.unref()
+
   let closing: Promise<void> | null = null
   return {
     url: config.appUrl,
     close: () =>
       (closing ??= (async () => {
+        clearInterval(sweep)
         hub.closeAll()
         await new Promise<void>((resolve) => {
           const timer = setTimeout(resolve, 10_000)

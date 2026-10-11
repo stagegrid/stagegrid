@@ -4,6 +4,7 @@ import {
   EMPLOYEE_PROVIDERS,
   EMPLOYEE_ROLES,
   PROJECT_ROLES,
+  RUN_STATES,
   TASK_STATES,
   USER_STATUSES,
   VIAS,
@@ -15,6 +16,7 @@ export const cellProgressMode = pgEnum('cell_progress_mode', CELL_PROGRESS_MODES
 export const taskState = pgEnum('task_state', TASK_STATES)
 export const employeeRole = pgEnum('employee_role', EMPLOYEE_ROLES)
 export const employeeProvider = pgEnum('employee_provider', EMPLOYEE_PROVIDERS)
+export const runState = pgEnum('run_state', RUN_STATES)
 export const projectRole = pgEnum('project_role', PROJECT_ROLES)
 export const userStatus = pgEnum('user_status', USER_STATUSES)
 export const actorVia = pgEnum('actor_via', VIAS)

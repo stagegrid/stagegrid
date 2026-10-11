@@ -5,6 +5,7 @@ import type {
   EmployeeRole,
   LinkKind,
   ProjectRole,
+  RunState,
   TaskAction,
   TaskState,
   UserStatus,
@@ -398,6 +399,76 @@ export interface TaskContextDto extends TaskContextSummaryDto {
   manifestHash: string
 }
 
+/** The latest run of a task, enough to show what is happening and whether it needs a person. */
+export interface TaskRunSummaryDto {
+  id: string
+  state: RunState
+  attempt: number
+  runnerName: string | null
+  failureReason: string | null
+  /** For waiting_for_capacity: when the run continues by itself. */
+  resumeAt: string | null
+  updatedAt: string
+}
+
+export interface RunDto extends TaskRunSummaryDto {
+  taskId: string
+  employeeId: string
+  contextRevisionId: string
+  runtime: { provider: string; model: string | null }
+  summary: string | null
+  leaseExpiresAt: string | null
+  createdAt: string
+  claimedAt: string | null
+  finishedAt: string | null
+}
+
+export interface RunnerDto {
+  id: string
+  name: string
+  providers: string[]
+  version: string | null
+  maxConcurrent: number
+  online: boolean
+  lastSeenAt: string | null
+  projectIds: string[]
+  revokedAt: string | null
+  createdAt: string
+}
+
+export interface RunnerEnrollmentDto {
+  id: string
+  name: string
+  /** Shown once; only its hash is stored. */
+  token: string
+  projectIds: string[]
+  expiresAt: string
+}
+
+/** What a runner receives when it claims a run: everything needed, nothing it has to look up. */
+export interface ClaimedRunDto {
+  run: {
+    id: string
+    attempt: number
+    fencingToken: number
+    leaseExpiresAt: string
+    sessionRef: string | null
+    runtime: { provider: string; model: string | null; instructions: string }
+  }
+  project: { id: string; slug: string; name: string }
+  employee: { id: string; displayName: string; role: string }
+  task: { id: string; title: string; scope: string; acceptanceCriteria: string[] }
+  context: TaskContextDto
+}
+
+export interface QueuedRunDto {
+  id: string
+  projectId: string
+  taskTitle: string
+  attempt: number
+  provider: string
+}
+
 export interface TaskDto {
   id: string
   cellId: string
@@ -411,6 +482,8 @@ export interface TaskDto {
   employee: EmployeeRefDto | null
   /** The latest pinned context, or null when none has been pinned. */
   context: TaskContextSummaryDto | null
+  /** The latest run, if any. */
+  run: TaskRunSummaryDto | null
   /** What a person can do next from this state. */
   actions: TaskAction[]
   createdAt: string

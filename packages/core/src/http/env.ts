@@ -4,6 +4,7 @@ import type { Config } from '../config/config'
 import type { Database } from '../db/client'
 import type { SseHub } from '../realtime/hub'
 import type { Actor } from '../services/context'
+import type { RunnerRow } from '../services/runners.service'
 import type { RateLimiter } from './middleware/rate-limit'
 
 export interface AppDeps {
@@ -28,6 +29,7 @@ export interface AppEnv {
   Variables: {
     requestId: string
     auth: AuthState | null
+    runner: RunnerRow | null
     deps: AppDeps
   }
 }
