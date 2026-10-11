@@ -428,3 +428,31 @@ export type RunnerSelfInput = z.infer<typeof runnerSelfInput>
 export type ClaimRunInput = z.infer<typeof claimRunInput>
 export type RunEventInput = z.infer<typeof runEventInput>
 export type CompleteRunInput = z.infer<typeof completeRunInput>
+
+// ---- questions
+export const askQuestionsInput = z.object({
+  questions: z
+    .array(
+      z.object({
+        prompt: z.string().trim().min(1).max(LIMITS.questionPrompt),
+        options: z
+          .array(z.string().trim().min(1).max(LIMITS.questionOption))
+          .max(LIMITS.questionOptions)
+          .default([]),
+      }),
+    )
+    .min(1)
+    .max(LIMITS.questionsPerBatch),
+  contextRevisionId: z.uuid(),
+  idempotencyKey: z.string().trim().min(1).max(LIMITS.idempotencyKey),
+  fencingToken: z.number().int().min(1),
+})
+export const answerQuestionInput = z.object({
+  answer: z.string().trim().min(1).max(LIMITS.answer),
+  /** The answer changes what was agreed: the work waits for a new pinned context. */
+  changesScope: z.boolean().default(false),
+  idempotencyKey: z.string().trim().min(1).max(LIMITS.idempotencyKey),
+})
+
+export type AskQuestionsInput = z.infer<typeof askQuestionsInput>
+export type AnswerQuestionInput = z.infer<typeof answerQuestionInput>

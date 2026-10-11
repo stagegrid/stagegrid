@@ -65,6 +65,11 @@ export const LIMITS = {
   runSummary: 20_000,
   runFailure: 2000,
   idempotencyKey: 200,
+  questionsPerBatch: 20,
+  questionPrompt: 2000,
+  questionOption: 300,
+  questionOptions: 10,
+  answer: 5000,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
@@ -164,3 +169,8 @@ export interface Ceilings {
   fiveHour: number
   weekly: number
 }
+
+export const QUESTION_BATCH_STATES = ['open', 'answered', 'cancelled'] as const
+export type QuestionBatchState = (typeof QUESTION_BATCH_STATES)[number]
+export const QUESTION_STATES = ['open', 'answered', 'cancelled'] as const
+export type QuestionState = (typeof QUESTION_STATES)[number]

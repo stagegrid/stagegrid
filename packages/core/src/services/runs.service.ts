@@ -30,10 +30,12 @@ import { type ProjectRow, requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
 import { revisionMarkdown } from './docs.service'
+import { answeredQuestions } from './questions.service'
 import { eligibleRunnerExists, type RunnerRow } from './runners.service'
-import { loadTaskInProject, type TaskRow } from './task-access'
+import { loadTaskInProject, lockTask, type TaskRow } from './task-access'
 import { getContextOrThrow, readinessReasons } from './task-context.service'
 import { moveTaskState } from './tasks.service'
+import { cancelRunRows } from './work-cancel'
 
 type RunRow = typeof runs.$inferSelect
 
@@ -70,12 +72,6 @@ async function runnerName(db: DbOrTx, id: string | null): Promise<string | null>
   if (!id) return null
   const [r] = await db.select({ name: runners.name }).from(runners).where(eq(runners.id, id))
   return r?.name ?? null
-}
-
-async function lockTask(tx: Tx, taskId: string): Promise<TaskRow> {
-  const [t] = await tx.select().from(tasks).where(eq(tasks.id, taskId)).for('update')
-  if (!t) throw notFound('Task not found')
-  return t
 }
 
 async function projectOf(db: DbOrTx, projectId: string): Promise<ProjectRow> {
@@ -250,19 +246,11 @@ export async function cancelRun(
         state: current?.state,
       })
     const now = ctx.now()
-    const [row] = await tx
-      .update(runs)
-      .set({
-        state: 'cancelled',
-        fencingToken: current.fencingToken + 1,
-        leaseExpiresAt: null,
-        failureReason: reason ?? null,
-        finishedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(runs.id, runId))
-      .returning()
-    if (task.state === 'in_progress' && current.taskStateBefore !== 'in_progress')
+    const row = await cancelRunRows(tx, current, now, reason ?? null)
+    if (
+      (task.state === 'in_progress' || task.state === 'waiting_for_answer') &&
+      current.taskStateBefore !== 'in_progress'
+    )
       await moveTaskState(
         tx,
         txCtx,
@@ -286,7 +274,7 @@ export async function cancelRun(
       state: 'cancelled',
     })
     await notify(tx, txCtx, project.id, 'task.updated', { taskId: task.id, cellId: task.cellId })
-    return toRunDto(row!, await runnerName(tx, row!.runnerId))
+    return toRunDto(row, await runnerName(tx, row.runnerId))
   })
 }
 
@@ -362,6 +350,7 @@ async function claimPayload(
       acceptanceCriteria: task.acceptanceCriteria,
     },
     context,
+    answers: await answeredQuestions(tx, task.id),
     documents: await Promise.all(
       context.manifest.documents.map(async (d) => ({
         ...d,

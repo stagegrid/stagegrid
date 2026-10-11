@@ -2,6 +2,7 @@ import { createContextInput, createEmployeeInput, updateEmployeeInput } from '@s
 import { Hono } from 'hono'
 
 import * as employees from '../../services/employees.service'
+import * as questions from '../../services/questions.service'
 import * as contexts from '../../services/tasks.service'
 import { body, serviceCtx } from '../context'
 import type { AppEnv } from '../env'
@@ -71,7 +72,7 @@ export const employeeRoutes = new Hono<AppEnv>()
   )
   .post('/projects/:ref/tasks/:id/context', async (c) =>
     c.json(
-      await contexts.pinContext(
+      await questions.pinContextAndRelease(
         serviceCtx(c),
         c.req.param('ref'),
         c.req.param('id'),

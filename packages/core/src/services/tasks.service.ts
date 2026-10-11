@@ -13,7 +13,7 @@ import type {
   TaskState,
   UpdateTaskInput,
 } from '@stagegrid/shared'
-import { LIMITS } from '@stagegrid/shared'
+import { ACTIVE_RUN_STATES, LIMITS } from '@stagegrid/shared'
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import type { DbOrTx, Tx } from '../db/client'
@@ -42,13 +42,14 @@ import { requireActiveEmployee } from './employees.service'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
 import { loadItems, loadStages } from './structure'
-import { loadTaskInProject, type TaskRow } from './task-access'
+import { loadTaskInProject, lockTask, type TaskRow } from './task-access'
 import {
   createContextRevision,
   getContextOrThrow,
   latestContexts,
   readinessReasons,
 } from './task-context.service'
+import { cancelRunRows, isActiveRunRow } from './work-cancel'
 
 type CellRow = typeof cells.$inferSelect
 
@@ -577,6 +578,17 @@ export async function transitionTask(
       const reasons = await readinessReasons(tx, project, current)
       if (reasons.length)
         throw invalid(`This task isn't ready: ${reasons.join(' ')}`, { code: 'not_ready', reasons })
+    }
+    if (input.action === 'cancel') {
+      // Cancelling a task stops its work too: lock the task, then end any run and open questions.
+      await lockTask(tx, taskId)
+      const [active] = await tx
+        .select()
+        .from(runs)
+        .where(and(eq(runs.taskId, taskId), inArray(runs.state, [...ACTIVE_RUN_STATES])))
+        .for('update')
+      if (active && isActiveRunRow(active))
+        await cancelRunRows(tx, active, ctx.now(), 'The task was cancelled')
     }
     if (input.action === 'restore') {
       const cx = await loadCellContext(tx, project, current.cellId)

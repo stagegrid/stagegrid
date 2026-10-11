@@ -1,4 +1,6 @@
 import {
+  answerQuestionInput,
+  askQuestionsInput,
   cancelRunInput,
   claimRunInput,
   completeRunInput,
@@ -15,8 +17,10 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import { AppError } from '../../errors'
+import * as questions from '../../services/questions.service'
 import * as runners from '../../services/runners.service'
 import * as runs from '../../services/runs.service'
+import * as thread from '../../services/thread.service'
 import { body, clientIp, serviceCtx } from '../context'
 import type { AppEnv } from '../env'
 import { runnerAuth } from '../middleware/runner-auth'
@@ -49,6 +53,25 @@ export const runRoutes = new Hono<AppEnv>()
         (await body(c, cancelRunInput)).reason,
       ),
     ),
+  )
+  .get('/projects/:ref/tasks/:id/questions', async (c) =>
+    c.json(await questions.listBatches(serviceCtx(c), c.req.param('ref'), c.req.param('id'))),
+  )
+  .post('/projects/:ref/questions/:id/answer', async (c) =>
+    c.json(
+      await questions.answerQuestion(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('id'),
+        await body(c, answerQuestionInput),
+      ),
+    ),
+  )
+  .get('/projects/:ref/tasks/:id/thread', async (c) =>
+    c.json(await thread.getThread(serviceCtx(c), c.req.param('ref'), c.req.param('id'))),
+  )
+  .get('/projects/:ref/attention', async (c) =>
+    c.json(await thread.getAttention(serviceCtx(c), c.req.param('ref'))),
   )
   // ---- admins
   .post('/runner-enrollments', async (c) =>
@@ -137,6 +160,17 @@ export const runRoutes = new Hono<AppEnv>()
         c.req.param('id'),
         await body(c, runEventInput),
       ),
+    ),
+  )
+  .post('/runner/runs/:id/questions', async (c) =>
+    c.json(
+      await questions.askQuestions(
+        serviceCtx(c),
+        c.get('runner')!,
+        c.req.param('id'),
+        await body(c, askQuestionsInput),
+      ),
+      201,
     ),
   )
   .post('/runner/runs/:id/complete', async (c) =>

@@ -89,6 +89,7 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
       manifestHash: 'h',
       manifest: {
         schemaVersion: 1,
+        answers: [],
         documents: [],
         sources: [
           {

@@ -7,6 +7,8 @@ import type {
   LinkKind,
   ProjectRole,
   ProviderCapacity,
+  QuestionBatchState,
+  QuestionState,
   RunState,
   TaskAction,
   TaskState,
@@ -473,6 +475,55 @@ export interface ClaimedRunDto {
     title: string
     markdown: string
   }[]
+  /** Answers people gave to the employee's earlier questions, oldest first. */
+  answers: { question: string; answer: string }[]
+}
+
+export interface QuestionDto {
+  id: string
+  position: number
+  prompt: string
+  options: string[]
+  state: QuestionState
+  answer: string | null
+  changesScope: boolean
+  answeredBy: { userId: string; name: string } | null
+  answeredAt: string | null
+}
+
+export interface QuestionBatchDto {
+  id: string
+  taskId: string
+  runId: string
+  contextRevisionId: string
+  state: QuestionBatchState
+  /** Answered, but the continuation waits for a new pinned context (a scope change). */
+  holdForContext: boolean
+  createdAt: string
+  closedAt: string | null
+  questions: QuestionDto[]
+}
+
+/** Something a person needs to act on: answer, look at a failed run, accept work. */
+export interface AttentionItemDto {
+  kind: 'question' | 'run_problem'
+  taskId: string
+  taskTitle: string
+  itemPath: string
+  stageName: string
+  employee: EmployeeRefDto | null
+  at: string
+  summary: string
+}
+
+export interface ThreadItemDto {
+  id: string
+  kind: 'task_event' | 'progress' | 'log' | 'question' | 'answer'
+  at: string
+  actor: { name: string; via: Via; isEmployee: boolean }
+  text: string
+  /** Extra detail the reader can expand (a reason, the options offered). */
+  detail: string | null
 }
 
 export interface QueuedRunDto {
