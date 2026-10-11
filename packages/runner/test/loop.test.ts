@@ -89,7 +89,6 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
       manifestHash: 'h',
       manifest: {
         schemaVersion: 1,
-        answers: [],
         documents: [],
         sources: [
           {
@@ -102,6 +101,7 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
         decisions: ['Email and password only'],
       },
     },
+    answers: [],
     documents: [
       {
         documentId: 'd1',
