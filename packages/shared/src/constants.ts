@@ -49,6 +49,16 @@ export const LIMITS = {
   acceptanceCriteria: 50,
   acceptanceCriterion: 500,
   tasksPerCell: 200,
+  employeeName: 60,
+  employeeInstructions: 10_000,
+  employeeAvatar: 8,
+  employeesPerProject: 50,
+  modelName: 100,
+  contextDocuments: 30,
+  contextSources: 30,
+  contextSourceContent: 100_000,
+  contextDecisions: 50,
+  contextDecision: 1000,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
@@ -88,3 +98,10 @@ export const TASK_ACTIONS_NEEDING_REASON: readonly TaskAction[] = [
   'reopen',
   'cancel',
 ]
+
+export const EMPLOYEE_ROLES = ['analyst', 'dev', 'reviewer', 'qa'] as const
+export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number]
+
+/** AI runtimes an employee can work through. */
+export const EMPLOYEE_PROVIDERS = ['claude_code', 'codex'] as const
+export type EmployeeProvider = (typeof EMPLOYEE_PROVIDERS)[number]

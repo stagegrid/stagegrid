@@ -3,6 +3,8 @@ import { z } from 'zod'
 import {
   CELL_PROGRESS_MODES,
   CELL_STATUSES,
+  EMPLOYEE_PROVIDERS,
+  EMPLOYEE_ROLES,
   LIMITS,
   LINK_KINDS,
   PATH_SEPARATOR,
@@ -289,6 +291,7 @@ export const createTaskInput = z.object({
   acceptanceCriteria: criteriaSchema.default([]),
   required: z.boolean().default(true),
   ownerUserId: z.uuid().nullable().default(null),
+  employeeId: z.uuid().nullable().default(null),
 })
 export const updateTaskInput = z.object({
   expectedVersion: z.number().int().min(1),
@@ -297,6 +300,7 @@ export const updateTaskInput = z.object({
   acceptanceCriteria: criteriaSchema.optional(),
   required: z.boolean().optional(),
   ownerUserId: z.uuid().nullable().optional(),
+  employeeId: z.uuid().nullable().optional(),
 })
 export const taskActionInput = z.object({
   action: z.enum(TASK_ACTIONS),
@@ -313,3 +317,39 @@ export type CreateTaskInput = z.infer<typeof createTaskInput>
 export type UpdateTaskInput = z.infer<typeof updateTaskInput>
 export type TaskActionInput = z.infer<typeof taskActionInput>
 export type ListTasksQuery = z.infer<typeof listTasksQuery>
+
+// ---- employees and task context
+export const createEmployeeInput = z.object({
+  displayName: nameSchema(LIMITS.employeeName),
+  role: z.enum(EMPLOYEE_ROLES),
+  provider: z.enum(EMPLOYEE_PROVIDERS),
+  model: z.string().trim().min(1).max(LIMITS.modelName).nullable().default(null),
+  instructions: z.string().trim().max(LIMITS.employeeInstructions).default(''),
+  avatar: z.string().trim().min(1).max(LIMITS.employeeAvatar).nullable().default(null),
+})
+export const updateEmployeeInput = z.object({
+  expectedVersion: z.number().int().min(1),
+  displayName: nameSchema(LIMITS.employeeName).optional(),
+  role: z.enum(EMPLOYEE_ROLES).optional(),
+  provider: z.enum(EMPLOYEE_PROVIDERS).optional(),
+  model: z.string().trim().min(1).max(LIMITS.modelName).nullable().optional(),
+  instructions: z.string().trim().max(LIMITS.employeeInstructions).optional(),
+  avatar: z.string().trim().min(1).max(LIMITS.employeeAvatar).nullable().optional(),
+})
+export const contextSourceInput = z.object({
+  title: nameSchema(200),
+  url: z.url().max(LIMITS.linkUrl).nullable().default(null),
+  content: z.string().trim().min(1).max(LIMITS.contextSourceContent),
+})
+export const createContextInput = z.object({
+  documentIds: z.array(z.uuid()).max(LIMITS.contextDocuments).default([]),
+  sources: z.array(contextSourceInput).max(LIMITS.contextSources).default([]),
+  decisions: z
+    .array(z.string().trim().min(1).max(LIMITS.contextDecision))
+    .max(LIMITS.contextDecisions)
+    .default([]),
+})
+
+export type CreateEmployeeInput = z.infer<typeof createEmployeeInput>
+export type UpdateEmployeeInput = z.infer<typeof updateEmployeeInput>
+export type CreateContextInput = z.infer<typeof createContextInput>

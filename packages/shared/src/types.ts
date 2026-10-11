@@ -1,5 +1,7 @@
 import type {
   CellProgressMode,
+  EmployeeProvider,
+  EmployeeRole,
   CellStatus,
   LinkKind,
   ProjectRole,
@@ -347,6 +349,55 @@ export interface DocumentDto extends DocumentSummaryDto {
   viewUrl: string
 }
 
+export interface EmployeeDto {
+  id: string
+  displayName: string
+  role: EmployeeRole
+  instructions: string
+  provider: EmployeeProvider
+  model: string | null
+  avatar: string | null
+  version: number
+  archivedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** What a task card needs to show who the AI employee is. */
+export interface EmployeeRefDto {
+  id: string
+  displayName: string
+  role: EmployeeRole
+  avatar: string | null
+}
+
+export interface ContextManifestDto {
+  schemaVersion: 1
+  documents: { documentId: string; revisionId: string; version: number; title: string }[]
+  sources: { title: string; url: string | null; content: string; retrievedAt: string }[]
+  decisions: string[]
+}
+
+/** A document the pinned context uses that has changed since it was pinned. */
+export interface OutdatedDocumentDto {
+  documentId: string
+  title: string
+  pinnedVersion: number
+  currentVersion: number
+}
+
+export interface TaskContextSummaryDto {
+  revisionId: string
+  revisionNo: number
+  createdAt: string
+  outdated: OutdatedDocumentDto[]
+}
+
+export interface TaskContextDto extends TaskContextSummaryDto {
+  manifest: ContextManifestDto
+  manifestHash: string
+}
+
 export interface TaskDto {
   id: string
   cellId: string
@@ -357,6 +408,9 @@ export interface TaskDto {
   state: TaskState
   version: number
   owner: { userId: string; name: string } | null
+  employee: EmployeeRefDto | null
+  /** The latest pinned context, or null when none has been pinned. */
+  context: TaskContextSummaryDto | null
   /** What a person can do next from this state. */
   actions: TaskAction[]
   createdAt: string

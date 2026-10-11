@@ -1,8 +1,12 @@
 import type {
   BoardTaskDto,
   CellProgressMode,
+  CreateContextInput,
   CreateTaskInput,
+  EmployeeRefDto,
   TaskActionInput,
+  TaskContextDto,
+  TaskContextSummaryDto,
   TaskDetailDto,
   TaskDto,
   TaskState,
@@ -15,6 +19,7 @@ import type { DbOrTx, Tx } from '../db/client'
 import {
   cellEvents,
   cells,
+  employees,
   items,
   projectMembers,
   stages,
@@ -30,14 +35,57 @@ import { type ProjectRow, requireProjectRole } from './access'
 import { audit } from './audit'
 import { loadEvents, recomputeCell } from './changes.service'
 import { type ServiceContext, withTx } from './context'
+import { requireActiveEmployee } from './employees.service'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
 import { loadItems, loadStages } from './structure'
+import { loadTaskInProject, type TaskRow } from './task-access'
+import {
+  createContextRevision,
+  getContextOrThrow,
+  latestContexts,
+  readinessReasons,
+} from './task-context.service'
 
-type TaskRow = typeof tasks.$inferSelect
 type CellRow = typeof cells.$inferSelect
 
-function toTaskDto(t: TaskRow, owners: Map<string, string>): TaskDto {
+interface TaskLookups {
+  owners: Map<string, string>
+  employees: Map<string, EmployeeRefDto>
+  contexts: Map<string, TaskContextSummaryDto>
+}
+
+async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
+  const userIds = [...new Set(rows.flatMap((t) => (t.ownerUserId ? [t.ownerUserId] : [])))]
+  const employeeIds = [...new Set(rows.flatMap((t) => (t.employeeId ? [t.employeeId] : [])))]
+  const [owners, staff, contexts] = await Promise.all([
+    userIds.length
+      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, userIds))
+      : [],
+    employeeIds.length
+      ? db
+          .select({
+            id: employees.id,
+            displayName: employees.displayName,
+            role: employees.role,
+            avatar: employees.avatar,
+          })
+          .from(employees)
+          .where(inArray(employees.id, employeeIds))
+      : [],
+    latestContexts(
+      db,
+      rows.map((t) => t.id),
+    ),
+  ])
+  return {
+    owners: new Map(owners.map((u) => [u.id, u.name])),
+    employees: new Map(staff.map((e) => [e.id, e])),
+    contexts,
+  }
+}
+
+function toTaskDto(t: TaskRow, lookups: TaskLookups): TaskDto {
   return {
     id: t.id,
     cellId: t.cellId,
@@ -48,22 +96,14 @@ function toTaskDto(t: TaskRow, owners: Map<string, string>): TaskDto {
     state: t.state,
     version: t.version,
     owner: t.ownerUserId
-      ? { userId: t.ownerUserId, name: owners.get(t.ownerUserId) ?? 'Unknown' }
+      ? { userId: t.ownerUserId, name: lookups.owners.get(t.ownerUserId) ?? 'Unknown' }
       : null,
+    employee: t.employeeId ? (lookups.employees.get(t.employeeId) ?? null) : null,
+    context: lookups.contexts.get(t.id) ?? null,
     actions: availableActions(t.state),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   }
-}
-
-async function ownerNames(db: DbOrTx, rows: TaskRow[]): Promise<Map<string, string>> {
-  const ids = [...new Set(rows.flatMap((t) => (t.ownerUserId ? [t.ownerUserId] : [])))]
-  if (ids.length === 0) return new Map()
-  const found = await db
-    .select({ id: users.id, name: users.name })
-    .from(users)
-    .where(inArray(users.id, ids))
-  return new Map(found.map((u) => [u.id, u.name]))
 }
 
 interface CellContext {
@@ -225,7 +265,7 @@ export async function listTasks(
       ),
     )
     .orderBy(asc(tasks.createdAt), asc(tasks.id))
-  const owners = await ownerNames(
+  const lookups = await loadLookups(
     ctx.db,
     rows.map((r) => r.t),
   )
@@ -234,7 +274,7 @@ export async function listTasks(
     await loadStages(ctx.db, project.id),
   )
   return rows.map(({ t, cell, stageName }) => ({
-    ...toTaskDto(t, owners),
+    ...toTaskDto(t, lookups),
     itemId: cell.itemId,
     itemPath: resolver.index.pathOf(cell.itemId),
     stageId: cell.stageId,
@@ -242,23 +282,10 @@ export async function listTasks(
   }))
 }
 
-async function loadTaskInProject(
-  db: DbOrTx,
-  project: ProjectRow,
-  taskId: string,
-): Promise<TaskRow> {
-  const [t] = await db
-    .select()
-    .from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.projectId, project.id)))
-  if (!t) throw notFound('Task not found')
-  return t
-}
-
 async function toDetail(db: DbOrTx, project: ProjectRow, t: TaskRow): Promise<TaskDetailDto> {
   const cx = await loadCellContext(db, project, t.cellId)
-  const [owners, events] = await Promise.all([
-    ownerNames(db, [t]),
+  const [lookups, events] = await Promise.all([
+    loadLookups(db, [t]),
     db
       .select({ e: taskEvents, actorName: users.name })
       .from(taskEvents)
@@ -267,7 +294,7 @@ async function toDetail(db: DbOrTx, project: ProjectRow, t: TaskRow): Promise<Ta
       .orderBy(asc(taskEvents.createdAt), asc(taskEvents.id)),
   ])
   return {
-    ...toTaskDto(t, owners),
+    ...toTaskDto(t, lookups),
     itemId: cx.itemId,
     itemPath: cx.itemPath,
     stageId: cx.cell.stageId,
@@ -331,6 +358,7 @@ export async function createTask(
     if ((counted?.n ?? 0) >= LIMITS.tasksPerCell)
       throw invalid(`A cell can have at most ${LIMITS.tasksPerCell} tasks`)
     if (input.ownerUserId) await assertMember(tx, project.id, input.ownerUserId)
+    if (input.employeeId) await requireActiveEmployee(tx, project, input.employeeId)
 
     const now = ctx.now()
     const id = newId()
@@ -345,6 +373,7 @@ export async function createTask(
         acceptanceCriteria: input.acceptanceCriteria,
         required: input.required,
         ownerUserId: input.ownerUserId,
+        employeeId: input.employeeId,
         createdBy: ctx.actor!.userId,
         createdAt: now,
         updatedAt: now,
@@ -384,12 +413,20 @@ export async function updateTask(
         `A ${current.state === 'done' ? 'finished' : 'cancelled'} task can't be edited. Reopen or restore it first.`,
       )
     if (input.ownerUserId) await assertMember(tx, project.id, input.ownerUserId)
+    if (input.employeeId !== undefined && input.employeeId !== current.employeeId) {
+      if (!['draft', 'ready', 'changes_requested'].includes(current.state))
+        throw conflict(
+          "Work is under way, so it can't be reassigned now. Cancel or finish it first.",
+        )
+      if (input.employeeId) await requireActiveEmployee(tx, project, input.employeeId)
+    }
     const patch = {
       title: input.title,
       scope: input.scope,
       acceptanceCriteria: input.acceptanceCriteria,
       required: input.required,
       ownerUserId: input.ownerUserId,
+      employeeId: input.employeeId,
     }
     const changed = Object.entries(patch).filter(([, v]) => v !== undefined)
     if (changed.length === 0) throw invalid('Nothing to change')
@@ -456,6 +493,11 @@ export async function transitionTask(
       )
     if (t.reasonRequired && !input.reason)
       throw invalid('Say why: a reason is required for this action')
+    if (input.action === 'mark_ready') {
+      const reasons = await readinessReasons(tx, project, current)
+      if (reasons.length)
+        throw invalid(`This task isn't ready: ${reasons.join(' ')}`, { code: 'not_ready', reasons })
+    }
     if (input.action === 'restore') {
       const cx = await loadCellContext(tx, project, current.cellId)
       if (cx.cell.progressMode !== 'tasks' || cx.cell.status === 'skip')
@@ -492,4 +534,24 @@ export async function transitionTask(
     await notify(tx, txCtx, project.id, 'task.updated', { taskId, cellId: row.cellId })
     return toDetail(tx, project, row)
   })
+}
+
+export async function getContext(
+  ctx: ServiceContext,
+  ref: string,
+  taskId: string,
+  revisionId?: string,
+): Promise<TaskContextDto> {
+  const { project } = await requireProjectRole(ctx, ref, 'viewer')
+  await loadTaskInProject(ctx.db, project, taskId)
+  return getContextOrThrow(ctx.db, taskId, revisionId)
+}
+
+export function pinContext(
+  ctx: ServiceContext,
+  ref: string,
+  taskId: string,
+  input: CreateContextInput,
+): Promise<TaskContextDto> {
+  return createContextRevision(ctx, ref, taskId, input)
 }

@@ -14,6 +14,7 @@ import { requestId, requestLog, securityHeaders, withDeps } from './middleware/c
 import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
 import { docRoutes } from './routes/docs'
+import { employeeRoutes } from './routes/employees'
 import { mcpRoutes } from './routes/mcp'
 import { oauthApiRoutes, oauthRoutes } from './routes/oauth'
 import { projectRoutes } from './routes/projects'
@@ -70,6 +71,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', projectRoutes)
   api.route('/', releaseRoutes)
   api.route('/', taskRoutes)
+  api.route('/', employeeRoutes)
   api.route('/', docRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)

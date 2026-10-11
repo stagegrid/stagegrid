@@ -56,6 +56,7 @@ const newTask = (s: Awaited<ReturnType<typeof setup>>, title: string, extra = {}
     acceptanceCriteria: [],
     required: true,
     ownerUserId: null,
+    employeeId: null,
     ...extra,
   })
 

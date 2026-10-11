@@ -4,8 +4,10 @@ import { z } from 'zod'
 
 import { getCellByRefs } from '../../services/board.service'
 import type { ServiceContext } from '../../services/context'
+import { listEmployees } from '../../services/employees.service'
 import {
   createTask,
+  getContext,
   listTasks,
   setCellProgressMode,
   transitionTask,
@@ -68,6 +70,7 @@ export function registerTaskTools(server: McpServer, ctx: ServiceContext): void 
           acceptanceCriteria: rest.acceptanceCriteria ?? [],
           required: rest.required ?? true,
           ownerUserId: null,
+          employeeId: null,
         })
         return { id: t.id, state: t.state, version: t.version }
       }),
@@ -118,5 +121,38 @@ export function registerTaskTools(server: McpServer, ctx: ServiceContext): void 
         const cell = await getCellByRefs(ctx, ref, itemRef, stageRef)
         return setCellProgressMode(ctx, ref, cell.id, mode)
       }),
+  )
+
+  server.registerTool(
+    'list_employees',
+    {
+      title: 'List AI employees',
+      description:
+        'The named AI employees of a project with their role and runtime (provider, model). Use their ids as `employeeId` when assigning work.',
+      inputSchema: { project },
+      annotations: { readOnlyHint: true },
+    },
+    ({ project: ref }) =>
+      run(async () =>
+        (await listEmployees(ctx, ref)).map((e) => ({
+          id: e.id,
+          name: e.displayName,
+          role: e.role,
+          provider: e.provider,
+          model: e.model,
+        })),
+      ),
+  )
+
+  server.registerTool(
+    'get_task_context',
+    {
+      title: "Get a task's pinned context",
+      description:
+        'The immutable context pinned for a task: document revisions, source snapshots and confirmed decisions. `outdated` lists documents that changed after pinning; the pinned content itself never changes.',
+      inputSchema: { project, task: z.string().describe('Task id from list_tasks') },
+      annotations: { readOnlyHint: true },
+    },
+    ({ project: ref, task }) => run(async () => getContext(ctx, ref, task)),
   )
 }
