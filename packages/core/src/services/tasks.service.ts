@@ -109,6 +109,7 @@ async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
     if (latestRuns.has(run.taskId)) continue
     latestRuns.set(run.taskId, {
       id: run.id,
+      role: run.role,
       state: run.state,
       attempt: run.attempt,
       runnerName,
@@ -129,6 +130,10 @@ async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
 function toTaskDto(t: TaskRow, lookups: TaskLookups): TaskDto {
   return {
     id: t.id,
+    role: t.role,
+    reworkRounds: t.reworkRounds,
+    blockedReason: t.blockedReason,
+    parentTaskId: t.parentTaskId,
     cellId: t.cellId,
     title: t.title,
     scope: t.scope,
@@ -366,7 +371,7 @@ export async function getTask(
   return toDetail(ctx.db, project, await loadTaskInProject(ctx.db, project, taskId))
 }
 
-function recordEvent(
+export function recordEvent(
   tx: DbOrTx,
   ctx: ServiceContext,
   taskId: string,
@@ -404,7 +409,11 @@ export async function createTask(
     if ((counted?.n ?? 0) >= LIMITS.tasksPerCell)
       throw invalid(`A cell can have at most ${LIMITS.tasksPerCell} tasks`)
     if (input.ownerUserId) await assertMember(tx, project.id, input.ownerUserId)
-    if (input.employeeId) await requireActiveEmployee(tx, project, input.employeeId)
+    const assigned = input.employeeId
+      ? await requireActiveEmployee(tx, project, input.employeeId)
+      : null
+    if (assigned?.role === 'reviewer')
+      throw invalid("A Reviewer checks the Dev's delivery; they don't take tasks of their own.")
 
     const now = ctx.now()
     const id = newId()
@@ -420,6 +429,7 @@ export async function createTask(
         required: input.required,
         ownerUserId: input.ownerUserId,
         employeeId: input.employeeId,
+        role: assigned ? (assigned.role as 'analyst' | 'dev' | 'qa') : null,
         createdBy: ctx.actor!.userId,
         createdAt: now,
         updatedAt: now,
@@ -459,12 +469,18 @@ export async function updateTask(
         `A ${current.state === 'done' ? 'finished' : 'cancelled'} task can't be edited. Reopen or restore it first.`,
       )
     if (input.ownerUserId) await assertMember(tx, project.id, input.ownerUserId)
+    let roleFromEmployee: 'analyst' | 'dev' | 'qa' | null | undefined
     if (input.employeeId !== undefined && input.employeeId !== current.employeeId) {
       if (!['draft', 'ready', 'changes_requested'].includes(current.state))
         throw conflict(
           "Work is under way, so it can't be reassigned now. Cancel or finish it first.",
         )
-      if (input.employeeId) await requireActiveEmployee(tx, project, input.employeeId)
+      if (input.employeeId) {
+        const e = await requireActiveEmployee(tx, project, input.employeeId)
+        if (e.role === 'reviewer')
+          throw invalid("A Reviewer checks the Dev's delivery; they don't take tasks of their own.")
+        roleFromEmployee = e.role as 'analyst' | 'dev' | 'qa'
+      } else roleFromEmployee = null
     }
     const patch = {
       title: input.title,
@@ -478,7 +494,12 @@ export async function updateTask(
     if (changed.length === 0) throw invalid('Nothing to change')
     const [row] = await tx
       .update(tasks)
-      .set({ ...patch, version: current.version + 1, updatedAt: ctx.now() })
+      .set({
+        ...patch,
+        ...(roleFromEmployee !== undefined ? { role: roleFromEmployee } : {}),
+        version: current.version + 1,
+        updatedAt: ctx.now(),
+      })
       .where(and(eq(tasks.id, taskId), eq(tasks.version, input.expectedVersion)))
       .returning()
     if (!row) throw staleVersion(current.version)

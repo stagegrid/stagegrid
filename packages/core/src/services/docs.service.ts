@@ -406,6 +406,35 @@ async function resolveTarget(
 }
 
 /** Template with repeat sections expanded for this project/item/release (MCP get_doc_template). */
+/** Section ids and titles of a template as they apply to one item, for an employee drafting it. */
+export async function templateSectionsFor(
+  ctx: ServiceContext,
+  project: ProjectRow,
+  templateRef: string,
+  itemId: string,
+): Promise<{
+  key: string
+  name: string
+  sections: { id: string; number: string; title: string }[]
+} | null> {
+  let t
+  try {
+    t = await availableTemplate(ctx, project, templateRef)
+  } catch {
+    return null
+  }
+  if (t.level === 'release') return null
+  const resolved = resolveTemplate(
+    t.schema as TemplateSchema,
+    await resolveContext(ctx, project, { itemId, stageId: null, releaseId: null }, t.level),
+  )
+  return {
+    key: t.key,
+    name: t.name,
+    sections: resolved.sections.map((x) => ({ id: x.id, number: x.number ?? '', title: x.title })),
+  }
+}
+
 export async function resolveTemplateFor(
   ctx: ServiceContext,
   ref: string,
@@ -597,7 +626,19 @@ export async function saveDocDraft(
   input: SaveDocDraftInput,
 ): Promise<{ documentId: string; version: number; viewUrl: string }> {
   const { project } = await requireProjectRole(ctx, ref, 'editor')
-  const actor = requireActor(ctx)
+  return saveDocDraftCore(ctx, project, requireActor(ctx).userId, input)
+}
+
+/**
+ * The save itself, for a caller that already decided who may write. `authorId` is null when an AI
+ * employee wrote it, so the document shows "System" rather than pretending a person did.
+ */
+export async function saveDocDraftCore(
+  ctx: ServiceContext,
+  project: ProjectRow,
+  authorId: string | null,
+  input: SaveDocDraftInput,
+): Promise<{ documentId: string; version: number; viewUrl: string }> {
   let existing: DocumentRow | null = null
   let template: TemplateRow
   let target: Target
@@ -631,7 +672,7 @@ export async function saveDocDraft(
       version = existing.version + 1
       await tx
         .update(documents)
-        .set({ draft: input.draft, title, version, updatedBy: actor.userId, updatedAt: now })
+        .set({ draft: input.draft, title, version, updatedBy: authorId, updatedAt: now })
         .where(eq(documents.id, id))
     } else {
       id = newId()
@@ -647,8 +688,8 @@ export async function saveDocDraft(
         title,
         draft: input.draft,
         version,
-        createdBy: actor.userId,
-        updatedBy: actor.userId,
+        createdBy: authorId,
+        updatedBy: authorId,
         createdAt: now,
         updatedAt: now,
       })
@@ -659,7 +700,7 @@ export async function saveDocDraft(
       version,
       title,
       draft: input.draft,
-      createdBy: actor.userId,
+      createdBy: authorId,
       createdAt: now,
     })
     const url = viewUrl(ctx.config, project, id)
@@ -682,7 +723,7 @@ export async function saveDocDraft(
             url,
             kind: 'doc',
             documentId: id,
-            createdBy: actor.userId,
+            createdBy: authorId,
             createdAt: now,
           })
         await notify(tx, txCtx, project.id, 'cell.detail_updated', { cellId: cell.id })

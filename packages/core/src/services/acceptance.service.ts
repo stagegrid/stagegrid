@@ -8,6 +8,7 @@ import { notify } from '../realtime/notify'
 import { requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
+import { approveAnalystDocuments, handoffAfterAccept } from './flow.service'
 import { toSubmissionDto } from './submissions.service'
 import { loadTaskInProject, lockTask } from './task-access'
 import { getTask, moveTaskState } from './tasks.service'
@@ -81,15 +82,21 @@ export async function acceptTask(
         decidedAt: now,
       })
       .where(eq(taskSubmissions.id, submission.id))
-    await moveTaskState(
+    // Accepting an Analyst's delivery is approving the requirement revisions in it.
+    if (task.role === 'analyst')
+      await approveAnalystDocuments(tx, txCtx, project, submission, actor.userId)
+    const accepted = await moveTaskState(
       tx,
       txCtx,
       project,
       task,
       'done',
       'accept',
-      `Accepted commit ${submission.headCommit.slice(0, 7)}`,
+      task.role === 'analyst'
+        ? 'Accepted the requirements'
+        : `Accepted commit ${submission.headCommit.slice(0, 7)}`,
     )
+    await handoffAfterAccept(tx, txCtx, project, accepted, submission)
     await audit(tx, txCtx, {
       projectId: project.id,
       action: 'submission.accept',

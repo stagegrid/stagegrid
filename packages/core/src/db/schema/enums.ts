@@ -6,8 +6,11 @@ import {
   PROJECT_ROLES,
   QUESTION_BATCH_STATES,
   QUESTION_STATES,
+  REVIEW_STATES,
+  RUN_ROLES,
   RUN_STATES,
   SUBMISSION_STATES,
+  TASK_ROLES,
   TASK_STATES,
   USER_STATUSES,
   VIAS,
@@ -22,6 +25,9 @@ export const employeeProvider = pgEnum('employee_provider', EMPLOYEE_PROVIDERS)
 export const questionBatchState = pgEnum('question_batch_state', QUESTION_BATCH_STATES)
 export const questionState = pgEnum('question_state', QUESTION_STATES)
 export const submissionState = pgEnum('submission_state', SUBMISSION_STATES)
+export const runRole = pgEnum('run_role', RUN_ROLES)
+export const taskRole = pgEnum('task_role', TASK_ROLES)
+export const reviewState = pgEnum('review_state', REVIEW_STATES)
 export const runState = pgEnum('run_state', RUN_STATES)
 export const projectRole = pgEnum('project_role', PROJECT_ROLES)
 export const userStatus = pgEnum('user_status', USER_STATUSES)

@@ -1,5 +1,6 @@
 import type { ClaimedRunDto, QueuedRunDto, RunnerDto, UsageWindow } from '@stagegrid/shared'
 
+import type { AnalystDocument, QaResult, ReviewResult } from './adapters/types'
 import type { SubmissionPayload } from './delivery'
 
 export class RunnerApiError extends Error {
@@ -48,6 +49,10 @@ export interface CompleteBody {
   summary?: string
   failureReason?: string
   submission?: SubmissionPayload
+  review?: ReviewResult
+  qa?: QaResult
+  checks?: SubmissionPayload['verification']
+  documents?: AnalystDocument[]
 }
 
 export interface CapacityBody {

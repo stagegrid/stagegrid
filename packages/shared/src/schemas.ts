@@ -8,6 +8,7 @@ import {
   EMPLOYEE_PROVIDERS,
   EMPLOYEE_ROLES,
   EVIDENCE_SOURCES,
+  FINDING_SEVERITIES,
   LIMITS,
   LINK_KINDS,
   PATH_SEPARATOR,
@@ -448,11 +449,48 @@ export const submissionInput = z.object({
 export const acceptTaskInput = z.object({
   expectedVersion: z.number().int().min(1),
   submissionId: z.uuid(),
-  headCommit: commitSchema,
+  /** The delivered commit, or `documentId@version` for requirements. */
+  headCommit: z.string().trim().min(7).max(100),
   contextRevisionId: z.uuid(),
   idempotencyKey: idempotencyKey,
   /** Accept even though a check on this commit failed. */
   acknowledgeFailing: z.boolean().default(false),
+})
+
+export const findingInput = z.object({
+  severity: z.enum(FINDING_SEVERITIES),
+  text: z.string().trim().min(1).max(LIMITS.findingText),
+  file: z.string().trim().max(500).nullable().default(null),
+})
+export const reviewReportInput = z.object({
+  verdict: z.enum(['pass', 'changes_requested']),
+  summary: z.string().trim().max(LIMITS.runSummary).default(''),
+  findings: z.array(findingInput).max(LIMITS.findings).default([]),
+})
+export const qaReportInput = z.object({
+  verdict: z.enum(['pass', 'fail']),
+  summary: z.string().trim().max(LIMITS.runSummary).default(''),
+  findings: z.array(findingInput).max(LIMITS.findings).default([]),
+  results: z
+    .array(
+      z.object({
+        criterion: z.string().trim().min(1).max(LIMITS.acceptanceCriterion),
+        result: z.enum(['pass', 'fail', 'not_tested']),
+        evidence: z.string().trim().max(LIMITS.findingText).default(''),
+      }),
+    )
+    .max(LIMITS.acceptanceCriteria)
+    .default([]),
+})
+export const analystDocumentInput = z.object({
+  template: z.string().trim().min(1).max(100),
+  title: z.string().trim().max(200).optional(),
+  sections: z
+    .array(
+      z.object({ id: z.string().min(1).max(200), content: z.string().max(LIMITS.documentSection) }),
+    )
+    .min(1)
+    .max(LIMITS.documentSections),
 })
 
 export const completeRunInput = z.object({
@@ -461,8 +499,16 @@ export const completeRunInput = z.object({
   outcome: z.enum(RUN_OUTCOMES),
   summary: z.string().trim().max(LIMITS.runSummary).optional(),
   failureReason: z.string().trim().max(LIMITS.runFailure).optional(),
-  /** What was delivered, required when the run succeeded. */
+  /** What was delivered, required when a Dev or QA run succeeded. */
   submission: submissionInput.optional(),
+  /** A Reviewer run's verdict and findings. */
+  review: reviewReportInput.optional(),
+  /** A QA run's verdict, findings and per-criterion results. */
+  qa: qaReportInput.optional(),
+  /** Checks the runner ran itself for a QA run (e.g. the project's tests at the tested commit). */
+  checks: z.array(verificationInput).max(LIMITS.verificationsPerSubmission).optional(),
+  /** An Analyst run's requirement documents. */
+  documents: z.array(analystDocumentInput).max(LIMITS.documentsPerRun).optional(),
 })
 
 export type StartRunInput = z.infer<typeof startRunInput>
@@ -526,3 +572,7 @@ export const approveDocumentInput = z.object({
 })
 export type TeamSettingsInput = z.infer<typeof teamSettingsInput>
 export type ApproveDocumentInput = z.infer<typeof approveDocumentInput>
+
+export type ReviewReportInput = z.infer<typeof reviewReportInput>
+export type QaReportInput = z.infer<typeof qaReportInput>
+export type AnalystDocumentInput = z.infer<typeof analystDocumentInput>

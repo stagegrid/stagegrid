@@ -1,20 +1,38 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import { openSync } from 'node:fs'
 import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
+import { fakeClaude, fakeCodex } from './fake-agents'
 import { signIn } from './fixtures'
 
 test.describe.configure({ mode: 'serial' })
 
-test('a stage follows its tasks: accept to finish, reopen with a reason to rework', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
+// The login limiter allows few sign-ins per run, so every test here shares one signed-in page.
+let page: Page
+let runnerState: {
+  dir: string
+  configPath: string
+  repo: string
+  startWorker: () => ChildProcess
+  worker: ChildProcess
+} | null = null
+
+test.beforeAll(async ({ browser }) => {
+  page = await browser.newPage()
   await signIn(page)
+})
+
+test.afterAll(async () => {
+  runnerState?.worker.kill('SIGINT')
+  await page.close()
+})
+
+test('a stage follows its tasks: accept to finish, reopen with a reason to rework', async () => {
+  test.setTimeout(120_000)
   await page.goto('/p/clinic-os')
   await page.getByRole('button', { name: /^Reports, Deploy:/ }).click()
 
@@ -119,42 +137,25 @@ test('a stage follows its tasks: accept to finish, reopen with a reason to rewor
   git('commit', '-m', 'init')
   runner('repo', 'clinic-os', repo, '--test', 'test -f login.txt')
 
-  // A stand-in for `claude`: edits and commits in the worktree, then answers in Claude's format.
+  // Stand-ins for `claude` and `codex` that behave like the real ones would for each role.
   const fake = join(dir, 'claude')
-  await writeFile(
-    fake,
-    `#!${process.execPath}
-const { execSync } = require('node:child_process')
-const out = (e) => process.stdout.write(JSON.stringify(e) + '\\n')
-const args = process.argv.slice(2)
-const prompt = args[args.length - 1]
-if (prompt.includes('Slot booking') && !args.includes('--resume')) {
-  out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'needs_answers', summary: 'Two rules are unclear', commit: null, tests: null, questions: [
-    { prompt: 'Reject the second booking?', options: ['Yes', 'No'] },
-    { prompt: 'Slot length in minutes?', options: [] },
-  ] } })
-  process.exit(0)
-}
-require('node:fs').writeFileSync('login.txt', 'email login\\n')
-execSync('git add -A && git commit -q -m "feat: email login"')
-const commit = execSync('git rev-parse HEAD').toString().trim()
-out({ type: 'assistant', message: { content: [{ type: 'text', text: 'Implemented email login' }] } })
-out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'submitted', summary: 'Work done', commit, tests: '3 passed', questions: [] } })
-`,
-  )
+  await writeFile(fake, fakeClaude(process.execPath))
+  const fakeCodexBin = join(dir, 'codex')
+  await writeFile(fakeCodexBin, fakeCodex(process.execPath))
+  await chmod(fakeCodexBin, 0o755)
   await chmod(fake, 0o755)
   const config = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>
-  config.providers = { claude_code: { bin: fake } }
+  config.providers = { claude_code: { bin: fake }, codex: { bin: fakeCodexBin } }
+  config.codexHome = join(dir, 'codex-home')
   await writeFile(configPath, JSON.stringify(config))
 
-  const worker = spawn(
-    process.execPath,
-    ['packages/runner/dist/cli.js', 'start', '--config', configPath],
-    {
-      stdio: ['ignore', openSync(`${dir}/runner.log`, 'w'), openSync(`${dir}/runner.log`, 'a')],
-    },
-  )
-  try {
+  const startWorker = () =>
+    spawn(process.execPath, ['packages/runner/dist/cli.js', 'start', '--config', configPath], {
+      env: { ...process.env, FAKE_STATE_DIR: dir },
+      stdio: ['ignore', openSync(`${dir}/runner.log`, 'a'), openSync(`${dir}/runner.log`, 'a')],
+    })
+  runnerState = { dir, configPath, repo, startWorker, worker: startWorker() }
+  {
     await expect(async () => {
       await page.goto('/admin/runners')
       await expect(page.getByText('e2e-box')).toBeVisible()
@@ -214,7 +215,146 @@ out({ type: 'result', subtype: 'success', is_error: false, structured_output: { 
     await page.getByRole('button', { name: 'Accept this version' }).click()
     await page.getByRole('button', { name: 'Confirm' }).click()
     await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
-  } finally {
-    worker.kill('SIGINT')
   }
+})
+
+test('a team takes an item from requirements to tested work, with a person accepting every stage', async () => {
+  test.setTimeout(300_000)
+  const origin = 'http://localhost:4173'
+  const api = (path: string, data?: unknown) =>
+    page.request.fetch(`/api/v1${path}`, {
+      method: data === undefined ? 'GET' : 'POST',
+      data,
+      headers: { origin },
+    })
+  expect((await api('/projects/clinic-os/items', { items: [{ name: 'Bookings' }] })).status()).toBe(
+    201,
+  )
+
+  // The team: an analyst and a QA on Claude Code, a reviewer on Codex next to Mali the developer.
+  await page.goto('/p/clinic-os/settings')
+  for (const [name, role, provider] of [
+    ['Nok', 'Analyst', 'Claude Code'],
+    ['Ploy', 'Reviewer', 'Codex'],
+    ['Beam', 'QA', 'Claude Code'],
+  ]) {
+    await page.getByRole('button', { name: 'New employee' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Name', { exact: true }).fill(name!)
+    await dialog.getByLabel('Role').click()
+    await page.getByRole('option', { name: role!, exact: true }).click()
+    await dialog.getByLabel('Runs on').click()
+    await page.getByRole('option', { name: provider!, exact: true }).click()
+    await dialog.getByRole('button', { name: 'Create employee' }).click()
+    await expect(page.getByText(name!, { exact: true })).toBeVisible()
+  }
+  const pick = async (id: string, person: string) => {
+    await page.locator(`#${id}`).click()
+    await page.getByRole('option', { name: new RegExp(`^${person} ·`) }).click()
+  }
+  await page.getByRole('checkbox', { name: /Draft requirement documents/ }).click()
+  await pick('team-analyst', 'Nok')
+  await pick('team-dev', 'Mali')
+  await page.getByRole('checkbox', { name: /Review Dev's work/ }).click()
+  await pick('team-reviewer', 'Ploy')
+  await page.getByRole('checkbox', { name: /Test accepted work/ }).click()
+  await pick('team-qa', 'Beam')
+  await page.getByRole('button', { name: 'Save team' }).click()
+  await expect
+    .poll(
+      async () =>
+        (
+          (await (await api('/projects/clinic-os')).json()) as {
+            team: { qa: { enabled: boolean } }
+          }
+        ).team.qa.enabled,
+    )
+    .toBe(true)
+
+  const card = (title: string) => page.getByRole('button', { name: new RegExp(`^${title}`) })
+  const startWork = async () => {
+    await page.getByRole('button', { name: 'Mark ready' }).click()
+    await page.getByRole('button', { name: 'Start run' }).click()
+  }
+  const acceptThis = async () => {
+    await page.getByRole('button', { name: 'Accept this version' }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
+
+  // 1. The analyst drafts the requirements; accepting them approves that exact version.
+  await page.goto('/p/clinic-os/tasks')
+  await page.getByRole('button', { name: 'New task' }).click()
+  await page.getByLabel('Item').click()
+  await page.getByRole('option', { name: 'Bookings' }).click()
+  await page.getByLabel('Stage').click()
+  await page.getByRole('option', { name: 'Document' }).click()
+  await page.getByLabel('Assign to').click()
+  await page.getByRole('option', { name: /Nok/ }).click()
+  await page.getByLabel('Title').fill('Requirements: Bookings')
+  await page.getByRole('button', { name: /create task/i }).click()
+  await card('Requirements: Bookings').click()
+  await page.getByRole('button', { name: 'Pin context' }).click()
+  await page.getByLabel('Decisions').fill('Bookings are made online')
+  await page.getByRole('dialog').getByRole('button', { name: 'Pin context' }).click()
+  await expect(page.getByText('Revision 1')).toBeVisible()
+  await startWork()
+  await expect(
+    page.getByRole('region', { name: 'Delivery' }).getByText(/Requirement document, version 1/),
+  ).toBeVisible({ timeout: 40_000 })
+  await acceptThis()
+
+  // 2. The developer's task appears by itself, ready to start because the requirements are approved.
+  await expect(
+    page.getByRole('region', { name: 'Draft' }).getByText('Implement Bookings'),
+  ).toBeVisible()
+  await card('Implement Bookings').click()
+  await startWork()
+  // The reviewer asks for changes once; the developer reworks; the reviewer passes the new commit.
+  await expect(page.getByText('Sent back 1 time by a reviewer or QA.')).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(page.getByRole('button', { name: 'Accept this version' })).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(
+    page.getByRole('region', { name: 'Delivery' }).getByText('Reviewer: passed'),
+  ).toBeVisible()
+  await acceptThis()
+
+  // 3. QA gets its own task. It fails the accepted commit, so Implement reopens and QA waits.
+  await expect(page.getByRole('region', { name: 'Draft' }).getByText('Test Bookings')).toBeVisible()
+  await card('Test Bookings').click()
+  await startWork()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Waiting for the new accepted commit' }),
+  ).toBeVisible({
+    timeout: 60_000,
+  })
+  await page.keyboard.press('Escape')
+  await card('Implement Bookings').click()
+  await expect(page.getByText('Sent back 2 times by a reviewer or QA.')).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect(page.getByRole('button', { name: 'Accept this version' })).toBeVisible({
+    timeout: 60_000,
+  })
+  await acceptThis()
+
+  // 4. The same QA task is ready again for the new commit; it passes and a person accepts it.
+  await expect(page.getByRole('region', { name: 'Draft' }).getByText('Test Bookings')).toBeVisible()
+  await card('Test Bookings').click()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Waiting for the new accepted commit' }),
+  ).toHaveCount(0)
+  await startWork()
+  await expect(page.getByRole('region', { name: 'QA report' }).getByText('QA: passed')).toBeVisible(
+    { timeout: 60_000 },
+  )
+  await acceptThis()
+
+  await page.goto('/p/clinic-os')
+  for (const stage of ['Document', 'Implement', 'QA'])
+    await expect(page.getByRole('button', { name: `Bookings, ${stage}: Done` })).toBeVisible()
 })

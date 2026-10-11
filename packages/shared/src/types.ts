@@ -12,9 +12,12 @@ import type {
   ProviderCapacity,
   QuestionBatchState,
   QuestionState,
+  ReviewState,
+  RunRole,
   RunState,
   SubmissionState,
   TaskAction,
+  TaskRole,
   TaskState,
   TeamSettings,
   UserStatus,
@@ -417,6 +420,7 @@ export interface TaskContextDto extends TaskContextSummaryDto {
 /** The latest run of a task, enough to show what is happening and whether it needs a person. */
 export interface TaskRunSummaryDto {
   id: string
+  role: RunRole
   state: RunState
   attempt: number
   runnerName: string | null
@@ -427,6 +431,7 @@ export interface TaskRunSummaryDto {
 }
 
 export interface RunDto extends TaskRunSummaryDto {
+  role: RunRole
   taskId: string
   employeeId: string
   contextRevisionId: string
@@ -472,6 +477,8 @@ export interface ClaimedRunDto {
     fencingToken: number
     leaseExpiresAt: string
     sessionRef: string | null
+    /** Events already recorded for this run; the runner numbers new ones after it. */
+    lastSequence: number
     runtime: { provider: string; model: string | null; instructions: string }
   }
   project: { id: string; slug: string; name: string }
@@ -488,6 +495,27 @@ export interface ClaimedRunDto {
   }[]
   /** How far the work may leave this machine: nothing, a pushed branch, or a pull request. */
   delivery: DeliverySettings
+  role: RunRole
+  /** A Reviewer or QA run works at this exact commit in a fresh checkout, not on Dev's branch. */
+  checkout: string | null
+  /** The delivery a Reviewer or QA run examines. */
+  examine: {
+    headCommit: string
+    summary: string
+    artifacts: ArtifactDto[]
+    checks: CheckDto[]
+  } | null
+  /** What a Reviewer or QA sent back, for the Dev to address. */
+  feedback: { source: string; summary: string; findings: FindingDto[] }[]
+  /** For an Analyst run: the document templates it can fill in. */
+  analyst: {
+    itemPath: string
+    templates: {
+      key: string
+      name: string
+      sections: { id: string; number: string; title: string }[]
+    }[]
+  } | null
   /** Answers people gave to the employee's earlier questions, oldest first. */
   answers: { question: string; answer: string }[]
 }
@@ -519,7 +547,7 @@ export interface QuestionBatchDto {
 
 /** Something a person needs to act on: answer, look at a failed run, accept work. */
 export interface AttentionItemDto {
-  kind: 'question' | 'run_problem' | 'acceptance'
+  kind: 'question' | 'run_problem' | 'acceptance' | 'rework_limit' | 'handoff_blocked'
   taskId: string
   taskTitle: string
   itemPath: string
@@ -531,7 +559,7 @@ export interface AttentionItemDto {
 
 export interface ThreadItemDto {
   id: string
-  kind: 'task_event' | 'progress' | 'log' | 'question' | 'answer'
+  kind: 'task_event' | 'progress' | 'log' | 'question' | 'answer' | 'review'
   at: string
   actor: { name: string; via: Via; isEmployee: boolean }
   text: string
@@ -549,6 +577,9 @@ export interface QueuedRunDto {
 
 export interface ArtifactDto {
   artifactId: string
+  /** For a requirement document: which one and which version. */
+  documentId?: string
+  version?: number
   kind: ArtifactKind
   url: string | null
   repo: string | null
@@ -565,6 +596,24 @@ export interface CheckDto {
 }
 
 /** What a run delivered and how well it is backed up. A person's acceptance is bound to this commit. */
+export interface FindingDto {
+  severity: string
+  text: string
+  file: string | null
+}
+
+/** What a Reviewer or QA concluded about a delivery. It is advice to the person who accepts. */
+export interface ReviewDto {
+  id: string
+  role: 'reviewer' | 'qa'
+  verdict: string
+  summary: string
+  findings: FindingDto[]
+  results: { criterion: string; result: string; evidence: string }[]
+  runId: string
+  createdAt: string
+}
+
 export interface SubmissionDto {
   id: string
   runId: string
@@ -580,10 +629,16 @@ export interface SubmissionDto {
   decidedAt: string | null
   decidedBy: string | null
   decisionReason: string | null
+  reviewState: ReviewState
+  reviews: ReviewDto[]
 }
 
 export interface TaskDto {
   id: string
+  role: TaskRole | null
+  reworkRounds: number
+  blockedReason: string | null
+  parentTaskId: string | null
   cellId: string
   title: string
   scope: string

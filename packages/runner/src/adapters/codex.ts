@@ -11,8 +11,9 @@ import {
   type AdapterInput,
   type AdapterOutcome,
   type AgentAdapter,
-  DEV_RESULT_SCHEMA,
-  parseDevResult,
+  outcomeFromStructured,
+  READ_ONLY_ROLES,
+  schemaForRole,
 } from './types'
 
 export interface CodexOptions {
@@ -118,25 +119,18 @@ export function buildCodexArgs(
     schemaPath,
   ]
   if (model) common.push('-m', model)
+  // Reviewers, QA and analysts only read: the sandbox itself is read-only, whatever the agent tries.
+  const sandbox = READ_ONLY_ROLES.includes(input.role) ? 'read-only' : 'workspace-write'
   if (resume)
-    return [
-      'exec',
-      'resume',
-      ...common,
-      '-c',
-      'sandbox_mode="workspace-write"',
-      input.sessionRef!,
-      '-',
-    ]
+    return ['exec', 'resume', ...common, '-c', `sandbox_mode="${sandbox}"`, input.sessionRef!, '-']
   return [
     'exec',
     ...common,
     '-C',
     input.cwd,
     '-s',
-    'workspace-write',
-    '--add-dir',
-    input.gitDir,
+    sandbox,
+    ...(sandbox === 'workspace-write' ? ['--add-dir', input.gitDir] : []),
     '-',
   ]
 }
@@ -187,7 +181,7 @@ export class CodexAdapter implements AgentAdapter {
     const dir = await mkdtemp(join(tmpdir(), 'sg-codex-'))
     try {
       const schemaPath = join(dir, 'result.schema.json')
-      await writeFile(schemaPath, JSON.stringify(DEV_RESULT_SCHEMA))
+      await writeFile(schemaPath, JSON.stringify(schemaForRole(input.role)))
       const resume = input.sessionRef !== null
       // Codex has no separate system prompt, so the role rules lead the message.
       const stdin = `${input.systemPrompt}\n\n---\n\n${input.prompt}`
@@ -246,29 +240,13 @@ export class CodexAdapter implements AgentAdapter {
           kind: 'interrupted',
           reason: `Codex ended without finishing its turn (exit ${proc.code}).${proc.stderr.trim() ? ` ${proc.stderr.trim().slice(0, 300)}` : ''}`,
         }
-      let parsed = null
+      let value: unknown = null
       try {
-        parsed = parseDevResult(JSON.parse(lastMessage ?? ''))
+        value = JSON.parse(lastMessage ?? '')
       } catch {
-        /* not JSON */
+        /* not JSON: outcomeFromStructured reports it */
       }
-      if (!parsed)
-        return {
-          kind: 'failed',
-          reason: 'The agent finished without the required structured result.',
-        }
-      if (parsed.status === 'needs_answers')
-        return parsed.questions.length
-          ? { kind: 'needs_answers', summary: parsed.summary, questions: parsed.questions }
-          : { kind: 'failed', reason: 'The agent asked for answers but listed no questions.' }
-      return {
-        kind: 'finished',
-        summary: parsed.summary,
-        blocked: parsed.status === 'blocked',
-        commit: parsed.commit,
-        tests: parsed.tests,
-        costUsd: null,
-      }
+      return outcomeFromStructured(input.role, value, null)
     } finally {
       await rm(dir, { recursive: true, force: true })
     }

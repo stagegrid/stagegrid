@@ -50,3 +50,19 @@ export const SYSTEM_ACTION_LABEL: Record<string, string> = {
   run_succeeded: 'Run finished',
   run_cancelled: 'Run cancelled',
 }
+
+export const TASK_ROLE_LABEL: Record<string, string> = {
+  analyst: 'Requirements',
+  dev: 'Build',
+  qa: 'QA',
+}
+
+export const SYSTEM_ACTION_LABEL_EXTRA: Record<string, string> = {
+  review_requested: 'Review requested',
+  review_passed: 'Review passed',
+  review_changes: 'Changes requested by the Reviewer',
+  qa_passed: 'QA passed',
+  qa_failed: 'QA failed',
+  handoff: 'Handed over',
+  handoff_blocked: "Couldn't create the next task",
+}

@@ -1,5 +1,5 @@
 import type { AttentionItemDto, EmployeeRefDto, ThreadItemDto } from '@stagegrid/shared'
-import { and, asc, desc, eq, inArray, or } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, or } from 'drizzle-orm'
 
 import {
   cells,
@@ -9,6 +9,7 @@ import {
   runEvents,
   runs,
   stages,
+  submissionReviews,
   taskEvents,
   tasks,
   users,
@@ -34,6 +35,13 @@ const ACTION_TEXT: Record<string, string> = {
   run_succeeded: 'Run finished and submitted its work',
   run_cancelled: 'Run cancelled',
   ask: 'Asked questions',
+  review_requested: 'Review requested',
+  review_passed: 'Review passed',
+  review_changes: 'The Reviewer asked for changes: a new round started',
+  qa_passed: 'QA passed',
+  qa_failed: 'QA failed the accepted commit: the work was reopened',
+  handoff: 'Handed over',
+  handoff_blocked: "Couldn't create the next task",
   answered: 'All questions answered; the run continues',
 }
 
@@ -143,6 +151,22 @@ export async function getThread(
         })
     }
   }
+  const reviews = await ctx.db
+    .select()
+    .from(submissionReviews)
+    .where(eq(submissionReviews.taskId, taskId))
+  for (const r of reviews) {
+    const lines = r.findings.map((f) => `${f.severity}: ${f.text}${f.file ? ` (${f.file})` : ''}`)
+    const results = r.results.map((x) => `${x.result === 'pass' ? '✓' : '✗'} ${x.criterion}`)
+    items.push({
+      id: `v:${r.id}`,
+      kind: 'review',
+      at: r.createdAt.toISOString(),
+      actor: { name: r.role === 'qa' ? 'QA' : 'Reviewer', via: 'system', isEmployee: true },
+      text: `${r.role === 'qa' ? 'QA' : 'Review'}: ${r.verdict === 'pass' ? 'passed' : r.verdict === 'fail' ? 'failed' : 'changes requested'}${r.summary ? `. ${r.summary}` : ''}`,
+      detail: [...results, ...lines].join('\n') || null,
+    })
+  }
   return items.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id < b.id ? -1 : 1))
 }
 
@@ -158,6 +182,9 @@ export async function getAttention(ctx: ServiceContext, ref: string): Promise<At
       and(
         eq(tasks.projectId, project.id),
         or(
+          isNotNull(tasks.blockedReason),
+          eq(tasks.state, 'changes_requested'),
+          eq(tasks.state, 'draft'),
           eq(tasks.state, 'waiting_for_answer'),
           eq(tasks.state, 'in_progress'),
           eq(tasks.state, 'ready_for_acceptance'),
@@ -205,6 +232,18 @@ export async function getAttention(ctx: ServiceContext, ref: string): Promise<At
       itemPath: resolver.index.pathOf(cell.itemId),
       stageName,
       employee: t.employeeId ? (employeeRef.get(t.employeeId) ?? null) : null,
+    }
+    if (
+      t.blockedReason?.startsWith('Rework limit') ||
+      t.blockedReason?.startsWith("Couldn't create")
+    ) {
+      out.push({
+        ...base,
+        kind: t.blockedReason.startsWith('Rework limit') ? 'rework_limit' : 'handoff_blocked',
+        at: t.updatedAt.toISOString(),
+        summary: t.blockedReason,
+      })
+      continue
     }
     if (t.state === 'ready_for_acceptance') {
       const sub = subs.get(t.id)

@@ -55,6 +55,7 @@ export function validateSubmission(
       if (delivery.mode !== 'pull_request')
         problems.push("This project doesn't allow employees to open pull requests.")
     }
+    if (a.kind === 'document') problems.push('Documents are delivered by an Analyst, not as code.')
     if (a.kind === 'branch') {
       if (!a.branch) problems.push('A pushed branch needs its name.')
       if (delivery.mode === 'local')

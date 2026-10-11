@@ -11,9 +11,10 @@ import {
   RunnerApiError,
 } from './api'
 import type { RunnerConfig } from './config'
-import { buildDelivery } from './delivery'
-import { systemPrompt, taskPrompt } from './prompt'
-import { ensureWorktree } from './workspace'
+import type { SubmissionPayload } from './delivery'
+import { buildDelivery, postReviewComment, runCommand } from './delivery'
+import { rolePrompt, systemPromptFor, taskPrompt } from './prompt'
+import { branchFor, ensureCheckout, ensureWorktree, type Worktree } from './workspace'
 
 /** The part of the server API the loop uses; tests swap in a fake. */
 export interface LoopApi {
@@ -138,7 +139,7 @@ export class RunnerLoop {
     const runId = claim.run.id
     const token = claim.run.fencingToken
     let leaseLost = false
-    let sequence = 0
+    let sequence = claim.run.lastSequence
 
     const complete = (body: Omit<CompleteBody, 'fencingToken' | 'idempotencyKey'>) => {
       this.log(
@@ -188,15 +189,39 @@ export class RunnerLoop {
         failureReason: `This runner has no repository configured for project "${claim.project.slug}".`,
       })
 
-    let worktree
+    // Dev works on the task's own branch. Everyone else gets a fresh, detached checkout of one commit:
+    // a Reviewer and QA see exactly the delivery (never Dev's session or branch), an Analyst the base.
+    const role = claim.role
+    let worktree: Worktree
+    let cwd: string
     try {
-      worktree = await ensureWorktree({
-        repoPath: repo.path,
-        worktreesDir: config.worktreesDir,
-        projectSlug: claim.project.slug,
-        taskId: claim.task.id,
-        baseBranch: repo.baseBranch,
-      })
+      if (role === 'dev') {
+        worktree = await ensureWorktree({
+          repoPath: repo.path,
+          worktreesDir: config.worktreesDir,
+          projectSlug: claim.project.slug,
+          taskId: claim.task.id,
+          baseBranch: repo.baseBranch,
+        })
+        cwd = worktree.path
+      } else {
+        const commit = claim.checkout ?? repo.baseBranch
+        const checkout = await ensureCheckout({
+          repoPath: repo.path,
+          worktreesDir: config.worktreesDir,
+          projectSlug: claim.project.slug,
+          taskId: claim.task.id,
+          role,
+          commit,
+        })
+        worktree = {
+          path: checkout.path,
+          branch: branchFor(claim.task.id),
+          baseCommit: checkout.commit,
+          created: true,
+        }
+        cwd = checkout.path
+      }
     } catch (e) {
       return complete({ outcome: 'failed', failureReason: (e as Error).message })
     }
@@ -238,9 +263,17 @@ export class RunnerLoop {
     try {
       outcome = await adapter.run(
         {
-          cwd: worktree.path,
-          prompt: taskPrompt(claim, worktree.branch),
-          systemPrompt: systemPrompt(claim.employee.displayName, claim.run.runtime.instructions),
+          cwd,
+          role,
+          prompt:
+            role === 'dev'
+              ? taskPrompt(claim, worktree.branch)
+              : rolePrompt(claim, worktree.branch),
+          systemPrompt: systemPromptFor(
+            role,
+            claim.employee.displayName,
+            claim.run.runtime.instructions,
+          ),
           model: claim.run.runtime.model,
           sessionRef: claim.run.sessionRef,
           env: {
@@ -285,6 +318,42 @@ export class RunnerLoop {
           submission: delivery.submission,
         })
       }
+      case 'review': {
+        await postReviewComment({ claim, report: outcome.report, config }).catch((e) =>
+          this.log(`couldn't post the review comment: ${(e as Error).message}`),
+        )
+        return complete({
+          outcome: 'succeeded',
+          summary: outcome.report.summary,
+          review: outcome.report,
+        })
+      }
+      case 'qa': {
+        // The runner runs the project's tests on this checkout itself; the agent's probes are its own word.
+        const checks: SubmissionPayload['verification'] = []
+        if (repo.testCommand) {
+          const r = await runCommand(repo.testCommand, cwd, repo.testTimeoutSeconds)
+          checks.push({
+            command: repo.testCommand,
+            exitCode: r.exitCode,
+            commit: claim.checkout ?? '',
+            source: 'runner_reported',
+            output: r.output || null,
+          })
+        }
+        return complete({
+          outcome: 'succeeded',
+          summary: outcome.report.summary,
+          qa: outcome.report,
+          checks,
+        })
+      }
+      case 'analyst':
+        return complete({
+          outcome: 'succeeded',
+          summary: outcome.summary,
+          documents: outcome.documents,
+        })
       case 'needs_answers':
         // The run stops here: Stagegrid shows the questions and queues the run again once answered.
         return withRetry(() =>

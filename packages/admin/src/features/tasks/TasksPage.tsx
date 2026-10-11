@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 
 import { NewTaskDialog } from './NewTaskDialog'
 import { useTasks } from './queries'
-import { KANBAN_COLUMNS, TASK_STATE_DOT, TASK_STATE_LABEL } from './status'
+import { KANBAN_COLUMNS, TASK_ROLE_LABEL, TASK_STATE_DOT, TASK_STATE_LABEL } from './status'
 import { TaskSheet } from './TaskSheet'
 
 function TaskCard({ task, onOpen }: { task: BoardTaskDto; onOpen: () => void }) {
@@ -34,6 +34,11 @@ function TaskCard({ task, onOpen }: { task: BoardTaskDto; onOpen: () => void }) 
       <span className="flex flex-wrap items-center gap-1.5 text-xs">
         <span className={cn('size-2 shrink-0 rounded-full', TASK_STATE_DOT[task.state])} />
         <span>{TASK_STATE_LABEL[task.state]}</span>
+        {task.role && (
+          <Badge variant="outline" className="h-4 px-1 text-[10px]">
+            {TASK_ROLE_LABEL[task.role]}
+          </Badge>
+        )}
         {!task.required && (
           <Badge variant="outline" className="h-4 px-1 text-[10px]">
             Optional

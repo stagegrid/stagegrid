@@ -12,6 +12,7 @@ import { and, asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm'
 
 import type { DbOrTx, Tx } from '../db/client'
 import {
+  cells,
   employees,
   projects,
   runEvents,
@@ -20,6 +21,7 @@ import {
   runs,
   taskContextRevisions,
   tasks,
+  taskSubmissions,
 } from '../db/schema'
 import { capacityBlock, ceilingsFor } from '../domain/capacity'
 import { validateSubmission } from '../domain/delivery'
@@ -31,8 +33,18 @@ import { type ProjectRow, requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
 import { revisionMarkdown } from './docs.service'
+import { templateSectionsFor } from './docs.service'
+import {
+  afterDevDelivery,
+  feedbackFor,
+  recordAnalystDocuments,
+  recordQa,
+  recordReview,
+} from './flow.service'
 import { answeredQuestions } from './questions.service'
+import { makeResolver } from './refs'
 import { eligibleRunnerExists, type RunnerRow } from './runners.service'
+import { loadItems } from './structure'
 import { recordSubmission } from './submissions.service'
 import { loadTaskInProject, lockTask, type TaskRow } from './task-access'
 import { getContextOrThrow, readinessReasons } from './task-context.service'
@@ -51,6 +63,7 @@ const staleFencing = (current: number) =>
 
 function toRunDto(r: RunRow, runnerName: string | null): RunDto {
   return {
+    role: r.role,
     id: r.id,
     taskId: r.taskId,
     employeeId: r.employeeId,
@@ -138,7 +151,13 @@ export async function startRun(
       throw conflict('A run is already in progress for this task.', { code: 'run_active' })
 
     const [last] = await tx
-      .select({ state: runs.state, attempt: runs.attempt })
+      .select({
+        state: runs.state,
+        attempt: runs.attempt,
+        role: runs.role,
+        employeeId: runs.employeeId,
+        submissionId: runs.submissionId,
+      })
       .from(runs)
       .where(eq(runs.taskId, taskId))
       .orderBy(desc(runs.attempt))
@@ -172,7 +191,13 @@ export async function startRun(
     if (reasons.length)
       throw conflict(`This task isn't ready: ${reasons.join(' ')}`, { code: 'not_ready', reasons })
 
-    const [employee] = await tx.select().from(employees).where(eq(employees.id, task.employeeId))
+    // A retry repeats the step that failed: a stopped review is reviewed again by the same reviewer.
+    const retryRole = retry && last && last.role !== 'dev' ? last : null
+    const runRole = retryRole ? retryRole.role : (task.role ?? 'dev')
+    const [employee] = await tx
+      .select()
+      .from(employees)
+      .where(eq(employees.id, retryRole ? retryRole.employeeId : task.employeeId))
     if (!employee || employee.archivedAt)
       throw conflict(
         `${employee?.displayName ?? 'The employee'} is archived and can't take new work.`,
@@ -197,6 +222,8 @@ export async function startRun(
         employeeId: employee.id,
         contextRevisionId: latestCtx.id,
         attempt: (lastAttempt ?? 0) + 1,
+        role: runRole,
+        submissionId: retryRole?.submissionId ?? null,
         state: 'queued',
         taskStateBefore: task.state,
         runtime: {
@@ -325,6 +352,52 @@ export async function runnerQueue(ctx: ServiceContext, runner: RunnerRow): Promi
     }))
 }
 
+/** What a Reviewer, QA or Analyst run needs on top of the task: the delivery to examine, feedback to address, templates. */
+async function roleExtras(
+  ctx: ServiceContext,
+  tx: DbOrTx,
+  project: ProjectRow,
+  run: RunRow,
+  task: TaskRow,
+): Promise<Pick<ClaimedRunDto, 'checkout' | 'examine' | 'feedback' | 'analyst'>> {
+  const empty = { checkout: null, examine: null, feedback: [], analyst: null }
+  const toExamine = (s: typeof taskSubmissions.$inferSelect) => ({
+    headCommit: s.headCommit,
+    summary: s.summary,
+    artifacts: s.artifacts.map((a) => ({ ...a, kind: a.kind as 'commit' })),
+    checks: s.verification,
+  })
+  if (run.role === 'reviewer' && run.submissionId) {
+    const [s] = await tx
+      .select()
+      .from(taskSubmissions)
+      .where(eq(taskSubmissions.id, run.submissionId))
+    return s ? { ...empty, checkout: s.headCommit, examine: toExamine(s) } : empty
+  }
+  if (run.role === 'qa' && task.parentTaskId) {
+    const [s] = await tx
+      .select()
+      .from(taskSubmissions)
+      .where(
+        and(eq(taskSubmissions.taskId, task.parentTaskId), eq(taskSubmissions.state, 'accepted')),
+      )
+      .orderBy(desc(taskSubmissions.createdAt))
+      .limit(1)
+    return s ? { ...empty, checkout: s.headCommit, examine: toExamine(s) } : empty
+  }
+  if (run.role === 'analyst') {
+    const [cell] = await tx.select().from(cells).where(eq(cells.id, task.cellId))
+    const templates = []
+    for (const key of ['srs', 'brd']) {
+      const t = await templateSectionsFor(ctx, project, key, cell!.itemId)
+      if (t) templates.push(t)
+    }
+    const itemPath = makeResolver(await loadItems(tx, project.id), []).index.pathOf(cell!.itemId)
+    return { ...empty, analyst: { itemPath, templates } }
+  }
+  return { ...empty, feedback: await feedbackFor(tx as Tx, task) }
+}
+
 async function claimPayload(
   ctx: ServiceContext,
   tx: DbOrTx,
@@ -341,6 +414,7 @@ async function claimPayload(
       fencingToken: run.fencingToken,
       leaseExpiresAt: run.leaseExpiresAt!.toISOString(),
       sessionRef: run.sessionRef,
+      lastSequence: run.lastSequence,
       runtime: run.runtime,
     },
     project: { id: project.id, slug: project.slug, name: project.name },
@@ -353,6 +427,8 @@ async function claimPayload(
     },
     context,
     delivery: project.delivery,
+    role: run.role,
+    ...(await roleExtras(ctx, tx, project, run, task)),
     answers: await answeredQuestions(tx, task.id),
     documents: await Promise.all(
       context.manifest.documents.map(async (d) => ({
@@ -638,10 +714,23 @@ export async function completeRun(
     if (run.state !== 'running') throw staleFencing(run.fencingToken)
     const project = await projectOf(tx, run.projectId)
     if (input.outcome === 'succeeded') {
-      // A run that says it succeeded must show what it delivered; otherwise it can't be accepted.
-      const problems = input.submission
-        ? validateSubmission(input.submission, project.delivery)
-        : ['No delivery was reported: send the commit and the checks run against it.']
+      // A run that says it succeeded must show what it delivered (or concluded); otherwise it can't be accepted.
+      const problems =
+        run.role === 'analyst'
+          ? input.documents?.length
+            ? []
+            : ['No requirement document was reported.']
+          : run.role === 'reviewer'
+            ? input.review
+              ? []
+              : ['No review verdict was reported.']
+            : run.role === 'qa'
+              ? input.qa
+                ? []
+                : ['No QA report was reported.']
+              : input.submission
+                ? validateSubmission(input.submission, project.delivery)
+                : ['No delivery was reported: send the commit and the checks run against it.']
       if (problems.length)
         throw invalid(`This delivery can't be accepted as completed work: ${problems.join(' ')}`, {
           code: 'evidence_missing',
@@ -666,18 +755,52 @@ export async function completeRun(
       })
       .where(eq(runs.id, runId))
       .returning()
-    if (input.outcome === 'succeeded' && input.submission)
-      await recordSubmission(tx, txCtx, project, task, run, input.submission, input.summary ?? '')
-    if (input.outcome === 'succeeded' && task.state === 'in_progress')
-      await moveTaskState(
-        tx,
-        txCtx,
-        project,
-        task,
-        'ready_for_acceptance',
-        'run_succeeded',
-        `Run ${run.attempt} finished and submitted its work`,
-      )
+    if (input.outcome === 'succeeded') {
+      const done = row!
+      if (run.role === 'reviewer') await recordReview(tx, txCtx, project, task, done, input.review!)
+      else if (run.role === 'qa')
+        await recordQa(
+          tx,
+          txCtx,
+          project,
+          task,
+          done,
+          input.qa!,
+          input.submission?.verification ?? [],
+        )
+      else if (run.role === 'analyst') {
+        const submission = await recordAnalystDocuments(
+          tx,
+          txCtx,
+          project,
+          task,
+          done,
+          input.documents!,
+          input.summary ?? '',
+        )
+        if (task.state === 'in_progress')
+          await moveTaskState(
+            tx,
+            txCtx,
+            project,
+            task,
+            'ready_for_acceptance',
+            'run_succeeded',
+            `Run ${run.attempt} drafted the requirements: ${submission.artifacts.length} document${submission.artifacts.length === 1 ? '' : 's'}`,
+          )
+      } else {
+        const submission = await recordSubmission(
+          tx,
+          txCtx,
+          project,
+          task,
+          done,
+          input.submission!,
+          input.summary ?? '',
+        )
+        await afterDevDelivery(tx, txCtx, project, task, done, submission)
+      }
+    }
     await audit(tx, txCtx, {
       projectId: project.id,
       action: `run.${input.outcome}`,

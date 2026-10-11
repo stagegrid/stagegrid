@@ -45,6 +45,7 @@ function claim(mode: 'local' | 'branch' | 'pull_request', repo: string | null): 
       fencingToken: 1,
       leaseExpiresAt: '',
       sessionRef: null,
+      lastSequence: 0,
       runtime: { provider: 'claude_code', model: null, instructions: '' },
     },
     project: { id: 'p', slug: 'pilot', name: 'Pilot' },
@@ -53,6 +54,11 @@ function claim(mode: 'local' | 'branch' | 'pull_request', repo: string | null): 
     context: {} as ClaimedRunDto['context'],
     documents: [],
     delivery: { mode, repo },
+    role: 'dev',
+    checkout: null,
+    examine: null,
+    feedback: [],
+    analyst: null,
     answers: [],
   }
 }

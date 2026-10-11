@@ -70,3 +70,37 @@ export async function ensureWorktree(opts: {
 /** The commit the worktree is on, for reporting; null if it can't be read. */
 export const headCommit = (path: string): Promise<string | null> =>
   git(['rev-parse', 'HEAD'], path).catch(() => null)
+
+/**
+ * A fresh, detached checkout of one commit, for someone who must look at exactly that version and
+ * must not see (or disturb) the Dev's branch: a Reviewer, QA or an Analyst reading the base.
+ */
+export async function ensureCheckout(opts: {
+  repoPath: string
+  worktreesDir: string
+  projectSlug: string
+  taskId: string
+  role: string
+  commit: string
+}): Promise<{ path: string; commit: string }> {
+  if (!(await exists(opts.repoPath)))
+    throw new Error(`The repository for this project isn't at ${opts.repoPath}`)
+  const full = await git(['rev-parse', '--verify', `${opts.commit}^{commit}`], opts.repoPath).catch(
+    () => {
+      throw new Error(`The commit ${opts.commit} isn't in ${opts.repoPath}. Fetch it there first.`)
+    },
+  )
+  const path = join(
+    opts.worktreesDir,
+    opts.projectSlug,
+    `${branchFor(opts.taskId).replace('/', '-')}-${opts.role}-${full.slice(0, 10)}`,
+  )
+  if (await exists(join(path, '.git'))) {
+    await git(['checkout', '--detach', '--force', full], path)
+    await git(['clean', '-fdq'], path)
+    return { path, commit: full }
+  }
+  await mkdir(join(opts.worktreesDir, opts.projectSlug), { recursive: true })
+  await git(['worktree', 'add', '--detach', path, full], opts.repoPath)
+  return { path, commit: full }
+}

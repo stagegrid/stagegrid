@@ -18,6 +18,7 @@ const input = (extra: Partial<AdapterInput> = {}): AdapterInput => ({
   sessionRef: null,
   env: {},
   gitDir: '/repo/.git',
+  role: 'dev',
   ...extra,
 })
 

@@ -1,8 +1,8 @@
-import type { SubmissionDto, SubmissionInput } from '@stagegrid/shared'
+import type { ReviewDto, SubmissionDto, SubmissionInput } from '@stagegrid/shared'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 
 import type { DbOrTx, Tx } from '../db/client'
-import { type runs, taskArtifacts, taskSubmissions, users } from '../db/schema'
+import { type runs, submissionReviews, taskArtifacts, taskSubmissions, users } from '../db/schema'
 import { artifactRef, summarizeChecks } from '../domain/delivery'
 import { newId } from '../lib/ids'
 import { notify } from '../realtime/notify'
@@ -14,7 +14,24 @@ import type { TaskRow } from './task-access'
 type SubmissionRow = typeof taskSubmissions.$inferSelect
 type RunRow = typeof runs.$inferSelect
 
-export function toSubmissionDto(s: SubmissionRow, decidedBy: string | null): SubmissionDto {
+export function toReviewDto(r: typeof submissionReviews.$inferSelect): ReviewDto {
+  return {
+    id: r.id,
+    role: r.role as ReviewDto['role'],
+    verdict: r.verdict,
+    summary: r.summary,
+    findings: r.findings,
+    results: r.results,
+    runId: r.runId,
+    createdAt: r.createdAt.toISOString(),
+  }
+}
+
+export function toSubmissionDto(
+  s: SubmissionRow,
+  decidedBy: string | null,
+  reviews: ReviewDto[] = [],
+): SubmissionDto {
   return {
     id: s.id,
     runId: s.runId,
@@ -32,6 +49,8 @@ export function toSubmissionDto(s: SubmissionRow, decidedBy: string | null): Sub
     decidedAt: s.decidedAt?.toISOString() ?? null,
     decidedBy,
     decisionReason: s.decisionReason,
+    reviewState: s.reviewState,
+    reviews,
   }
 }
 
@@ -48,8 +67,24 @@ export async function latestSubmissions(
     .leftJoin(users, eq(users.id, taskSubmissions.decidedBy))
     .where(inArray(taskSubmissions.taskId, taskIds))
     .orderBy(desc(taskSubmissions.createdAt), desc(taskSubmissions.id))
-  for (const { s, name } of rows)
-    if (!out.has(s.taskId)) out.set(s.taskId, toSubmissionDto(s, name))
+  const latest = new Map<string, { s: SubmissionRow; name: string | null }>()
+  for (const r of rows) if (!latest.has(r.s.taskId)) latest.set(r.s.taskId, r)
+  const reviews = latest.size
+    ? await db
+        .select()
+        .from(submissionReviews)
+        .where(
+          inArray(
+            submissionReviews.submissionId,
+            [...latest.values()].map((r) => r.s.id),
+          ),
+        )
+    : []
+  for (const [taskId, { s, name }] of latest)
+    out.set(
+      taskId,
+      toSubmissionDto(s, name, reviews.filter((r) => r.submissionId === s.id).map(toReviewDto)),
+    )
   return out
 }
 
@@ -98,6 +133,7 @@ export async function recordSubmission(
           eq(taskArtifacts.externalRef, ref),
         ),
       )
+    const doc = a as typeof a & { documentId?: string; version?: number; template?: string }
     artifacts.push({
       artifactId: row!.id,
       kind: a.kind,
@@ -105,6 +141,9 @@ export async function recordSubmission(
       repo: a.repo,
       branch: a.branch,
       headCommit: a.headCommit,
+      ...(doc.documentId
+        ? { documentId: doc.documentId, version: doc.version, template: doc.template }
+        : {}),
     })
   }
   await tx

@@ -13,6 +13,7 @@ import {
   claimRun,
   heartbeatRun,
   listRuns,
+  recordRunEvent,
   runnerQueue,
 } from '../../src/services/runs.service'
 import { getTask, transitionTask } from '../../src/services/tasks.service'
@@ -132,6 +133,40 @@ describe('answering (AC-04)', () => {
       { question: 'Question 2?', answer: 'Reject the second booking' },
     ])
     expect(claim.run.fencingToken).toBeGreaterThan(r.token)
+  })
+
+  it("numbers a continuation's events after the ones already recorded", async () => {
+    const s = await workSetup(getDb)
+    const r = await runningRun(s)
+    await recordRunEvent(s.system, r.row, r.run.id, {
+      eventId: 'e1',
+      sequence: 1,
+      type: 'progress',
+      payload: { message: 'thinking' },
+      fencingToken: r.token,
+    })
+    const batch = await ask(s, r, 'ask-1', 1)
+    await answer(s, batch.questions[0]!.id)
+    const claim = await claimRun(s.system, r.row, r.run.id, { idempotencyKey: 'c2' })
+    expect(claim.run.lastSequence).toBe(1)
+    const ev = (n: number) => ({
+      eventId: `e${n}`,
+      sequence: n,
+      type: 'progress' as const,
+      payload: { message: `step ${n}` },
+      fencingToken: claim.run.fencingToken,
+    })
+    await expect(recordRunEvent(s.system, r.row, r.run.id, ev(1))).resolves.toMatchObject({
+      duplicate: true,
+    })
+    await expect(
+      recordRunEvent(s.system, r.row, r.run.id, { ...ev(1), eventId: 'again' }),
+    ).rejects.toMatchObject({
+      details: { code: 'out_of_order' },
+    })
+    await expect(recordRunEvent(s.system, r.row, r.run.id, ev(2))).resolves.toMatchObject({
+      duplicate: false,
+    })
   })
 
   it('continues exactly once when the last answers arrive together', async () => {

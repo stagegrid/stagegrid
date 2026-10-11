@@ -75,6 +75,11 @@ export const LIMITS = {
   verificationCommand: 500,
   verificationOutput: 4000,
   approvalNote: 1000,
+  findings: 50,
+  findingText: 2000,
+  documentsPerRun: 5,
+  documentSections: 100,
+  documentSection: 50_000,
   reworkLimitMax: 10,
 } as const
 
@@ -191,7 +196,7 @@ export interface DeliverySettings {
 }
 export const DEFAULT_DELIVERY: DeliverySettings = { mode: 'local', repo: null }
 
-export const ARTIFACT_KINDS = ['pull_request', 'branch', 'commit'] as const
+export const ARTIFACT_KINDS = ['pull_request', 'branch', 'commit', 'document'] as const
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number]
 
 /** Who ran a check: the agent says so (weakest), the runner ran it itself, or CI did. */
@@ -224,3 +229,19 @@ export const DEFAULT_TEAM: TeamSettings = {
 }
 /** Stage names each role works on unless the project maps it elsewhere. */
 export const DEFAULT_ROLE_STAGES = { analyst: 'Document', dev: 'Implement', qa: 'QA' } as const
+
+/** Roles a stage task can have in the team workflow; the Reviewer works inside the Dev task. */
+export const TASK_ROLES = ['analyst', 'dev', 'qa'] as const
+export type TaskRole = (typeof TASK_ROLES)[number]
+
+export const RUN_ROLES = ['analyst', 'dev', 'reviewer', 'qa'] as const
+export type RunRole = (typeof RUN_ROLES)[number]
+
+export const REVIEW_STATES = ['none', 'pending', 'passed', 'changes_requested'] as const
+export type ReviewState = (typeof REVIEW_STATES)[number]
+
+export const REVIEW_VERDICTS = ['pass', 'changes_requested', 'fail'] as const
+export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number]
+
+export const FINDING_SEVERITIES = ['blocker', 'major', 'minor', 'note'] as const
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number]

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -77,6 +77,7 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
       fencingToken: 4,
       leaseExpiresAt: '2026-10-20T03:01:30.000Z',
       sessionRef: null,
+      lastSequence: 0,
       runtime: { provider: 'claude_code', model: 'sonnet', instructions: 'Tests first.' },
       ...extra,
     },
@@ -109,6 +110,11 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
       },
     },
     delivery: { mode: 'local', repo: null },
+    role: 'dev',
+    checkout: null,
+    examine: null,
+    feedback: [],
+    analyst: null,
     answers: [],
     documents: [
       {
@@ -476,6 +482,105 @@ describe('RunnerLoop', () => {
     expect(prompt).toContain('Reject the second booking?')
     expect(prompt).toContain('Answer: Yes')
     expect(prompt).toContain('questions have been answered')
+  })
+
+  describe('other roles', () => {
+    const enqueueRole = async (
+      w: Awaited<ReturnType<typeof world>>,
+      id: string,
+      role: 'reviewer' | 'qa' | 'analyst',
+      extra: Record<string, unknown> = {},
+    ) => {
+      w.enqueue(id)
+      const claim = w.api.claims.get(id)!
+      const repoPath = (
+        w.loop as unknown as { opts: { config: { repos: Record<string, { path: string }> } } }
+      ).opts.config.repos.pilot!.path
+      const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath }).toString().trim()
+      Object.assign(claim, { role, checkout: role === 'analyst' ? null : head, ...extra })
+      return head
+    }
+
+    it('lets a reviewer look at a fresh checkout of the delivery and report a verdict', async () => {
+      const adapter = new FakeAdapter(async () => ({
+        kind: 'review',
+        report: {
+          verdict: 'changes_requested',
+          summary: 'No lockout',
+          findings: [{ severity: 'major', text: 'Missing lockout', file: 'a.ts' }],
+        },
+      }))
+      const w = await world(adapter)
+      const head = await enqueueRole(w, 'run-rv', 'reviewer', {
+        examine: { headCommit: 'abc1234', summary: 'Built it', artifacts: [], checks: [] },
+      })
+      await w.loop.tick()
+      await w.loop.idle()
+      const input = adapter.inputs[0]!
+      expect(input.role).toBe('reviewer')
+      expect(input.cwd).toContain('-reviewer-')
+      expect(await readFile(join(input.cwd, 'a.txt'), 'utf8')).toBe('a\n')
+      expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: input.cwd }).toString().trim()).toBe(
+        head,
+      )
+      expect(input.systemPrompt).toContain('You never change code')
+      expect(input.prompt).toContain('The delivery you examine')
+      expect(w.api.completions[0]).toMatchObject({
+        outcome: 'succeeded',
+        review: { verdict: 'changes_requested', summary: 'No lockout' },
+      })
+      expect(w.api.completions[0]!.submission).toBeUndefined()
+    })
+
+    it('has QA tested at the accepted commit, with the runner running the tests itself', async () => {
+      const adapter = new FakeAdapter(async () => ({
+        kind: 'qa',
+        report: {
+          verdict: 'pass',
+          summary: 'All good',
+          findings: [],
+          results: [{ criterion: 'Wrong password is rejected', result: 'pass', evidence: 'tried' }],
+        },
+      }))
+      const w = await world(adapter, { testCommand: 'test -f a.txt' })
+      const head = await enqueueRole(w, 'run-qa', 'qa')
+      await w.loop.tick()
+      await w.loop.idle()
+      const [done] = w.api.completions
+      expect(done).toMatchObject({ outcome: 'succeeded', qa: { verdict: 'pass' } })
+      expect(done!.checks).toEqual([
+        expect.objectContaining({
+          command: 'test -f a.txt',
+          exitCode: 0,
+          commit: head,
+          source: 'runner_reported',
+        }),
+      ])
+    })
+
+    it('has an analyst submit documents without needing a commit', async () => {
+      const adapter = new FakeAdapter(async () => ({
+        kind: 'analyst',
+        summary: 'Drafted',
+        documents: [{ template: 'srs', title: 'SRS', sections: [{ id: '1.1', content: 'Text' }] }],
+      }))
+      const w = await world(adapter)
+      await enqueueRole(w, 'run-an', 'analyst', {
+        analyst: {
+          itemPath: 'Login',
+          templates: [
+            { key: 'srs', name: 'SRS', sections: [{ id: '1.1', number: '1.1', title: 'Purpose' }] },
+          ],
+        },
+      })
+      await w.loop.tick()
+      await w.loop.idle()
+      expect(adapter.inputs[0]!.prompt).toContain('key: srs')
+      expect(w.api.completions[0]).toMatchObject({
+        outcome: 'succeeded',
+        documents: [{ template: 'srs', sections: [{ id: '1.1', content: 'Text' }] }],
+      })
+    })
   })
 
   it('fails a run for a project this runner has no repository for', async () => {

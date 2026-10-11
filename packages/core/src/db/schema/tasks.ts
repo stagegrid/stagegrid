@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   index,
@@ -7,13 +8,14 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
 import { users } from './auth'
 import { cells } from './cells'
 import { employees } from './employees'
-import { actorVia, taskState } from './enums'
+import { actorVia, taskRole, taskState } from './enums'
 import { projects } from './projects'
 
 const ts = (name: string) => timestamp(name, { withTimezone: true })
@@ -40,6 +42,14 @@ export const tasks = pgTable(
     ownerUserId: uuid('owner_user_id').references(() => users.id),
     /** The AI employee the work is assigned to, if any. A person can own it as well. */
     employeeId: uuid('employee_id').references(() => employees.id),
+    /** Which stage of the team workflow this task is (set from the employee's role). */
+    role: taskRole('role'),
+    /** The task whose acceptance handed this one on. */
+    parentTaskId: uuid('parent_task_id'),
+    /** Rework rounds sent back automatically by a Reviewer or QA. */
+    reworkRounds: integer('rework_rounds').notNull().default(0),
+    /** Why the task can't move on by itself (waiting for a commit, rework limit reached). */
+    blockedReason: text('blocked_reason'),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -47,6 +57,10 @@ export const tasks = pgTable(
   (t) => [
     index('tasks_cell_idx').on(t.cellId),
     index('tasks_project_idx').on(t.projectId, t.state),
+    // A handoff happens once: accepting a task twice can't create two next tasks.
+    uniqueIndex('tasks_handoff_uq')
+      .on(t.parentTaskId, t.role)
+      .where(sql`${t.parentTaskId} is not null`),
   ],
 )
 

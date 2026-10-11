@@ -8,8 +8,9 @@ import {
   type AdapterInput,
   type AdapterOutcome,
   type AgentAdapter,
-  DEV_RESULT_SCHEMA,
-  parseDevResult,
+  outcomeFromStructured,
+  READ_ONLY_ROLES,
+  schemaForRole,
 } from './types'
 
 export interface ClaudeOptions {
@@ -36,6 +37,14 @@ const ALWAYS_DENIED = ['Bash(git push*)', 'Bash(git remote*)', 'WebFetch', 'WebS
 const LIMIT_TEXT = /usage limit|limit reached|rate.?limit|too many requests|quota/i
 const LIMITED_STATUS = new Set(['rejected', 'blocked', 'exceeded', 'limit_reached', 'limited'])
 
+function allowedFor(role: AdapterInput['role'], opts: ClaudeOptions): string[] {
+  if (role === 'analyst') return ['Read', 'Grep', 'Glob']
+  if (role === 'reviewer') return ['Read', 'Grep', 'Glob', 'Bash(git *)']
+  if (role === 'qa')
+    return opts.allowedTools ?? DEFAULT_ALLOWED.filter((t) => !['Edit', 'Write'].includes(t))
+  return opts.allowedTools ?? DEFAULT_ALLOWED
+}
+
 export function buildClaudeArgs(
   input: AdapterInput,
   sessionId: string,
@@ -47,15 +56,18 @@ export function buildClaudeArgs(
   args.push(resume ? '--resume' : '--session-id', sessionId)
   args.push(
     '--json-schema',
-    JSON.stringify(DEV_RESULT_SCHEMA),
+    JSON.stringify(schemaForRole(input.role)),
     '--append-system-prompt',
     input.systemPrompt,
+    // Reviewers, QA and analysts only read: no edits, and the agent is told so and enforced here.
     '--permission-mode',
-    'acceptEdits',
+    READ_ONLY_ROLES.includes(input.role) ? 'dontAsk' : 'acceptEdits',
     '--allowedTools',
-    ...(opts.allowedTools ?? DEFAULT_ALLOWED),
+    ...allowedFor(input.role, opts),
     '--disallowedTools',
     ...ALWAYS_DENIED,
+    ...(READ_ONLY_ROLES.includes(input.role) ? ['Edit', 'Write', 'NotebookEdit'] : []),
+    ...(input.role === 'analyst' ? ['Bash'] : []),
     // Keep user hooks, plugins, MCP servers and slash commands out of an unattended run.
     '--setting-sources',
     'project',
@@ -197,7 +209,7 @@ export class ClaudeAdapter implements AgentAdapter {
     )
 
     if (proc.aborted) return { kind: 'interrupted', reason: 'The run was stopped.' }
-    return classifyClaude(result, limit, proc.code, proc.stderr, this.opts.maxBudgetUsd)
+    return classifyClaude(result, limit, proc.code, proc.stderr, this.opts.maxBudgetUsd, input.role)
   }
 }
 
@@ -207,6 +219,7 @@ export function classifyClaude(
   exitCode: number | null,
   stderr: string,
   budget?: number,
+  role: AdapterInput['role'] = 'dev',
 ): AdapterOutcome {
   const limited = limit?.status != null && LIMITED_STATUS.has(limit.status.toLowerCase())
   const capacity = (message: string): AdapterOutcome => ({
@@ -233,21 +246,7 @@ export function classifyClaude(
   const cost = typeof result.total_cost_usd === 'number' ? result.total_cost_usd : null
 
   if (subtype === 'success' && result.is_error !== true) {
-    const parsed = parseDevResult(result.structured_output)
-    if (parsed?.status === 'needs_answers')
-      return parsed.questions.length
-        ? { kind: 'needs_answers', summary: parsed.summary, questions: parsed.questions }
-        : { kind: 'failed', reason: 'The agent asked for answers but listed no questions.' }
-    if (parsed)
-      return {
-        kind: 'finished',
-        summary: parsed.summary,
-        blocked: parsed.status === 'blocked',
-        commit: parsed.commit,
-        tests: parsed.tests,
-        costUsd: cost,
-      }
-    return { kind: 'failed', reason: 'The agent finished without the required structured result.' }
+    return outcomeFromStructured(role, result.structured_output, cost)
   }
   if (subtype === 'error_max_budget_usd' || terminal === 'budget_exhausted')
     return {

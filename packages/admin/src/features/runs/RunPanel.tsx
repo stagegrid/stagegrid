@@ -9,7 +9,7 @@ import { errorMessage } from '@/lib/api'
 import { formatDateTime, relativeTime } from '@/lib/format'
 
 import { useRunMutations } from './queries'
-import { isActiveRun, needsAttention, RUN_STATE_LABEL } from './status'
+import { isActiveRun, needsAttention, RUN_ROLE_ACTIVITY, RUN_STATE_LABEL } from './status'
 
 /**
  * What the employee's latest run is doing and what a person can do about it: start it, retry after
@@ -48,7 +48,7 @@ export function RunPanel({
               {RUN_STATE_LABEL[run.state]}
             </Badge>
             <span className="text-muted-foreground text-xs">
-              Attempt {run.attempt}
+              {run.role !== 'dev' && `${RUN_ROLE_ACTIVITY[run.role]} · `}Attempt {run.attempt}
               {run.runnerName ? ` on ${run.runnerName}` : ''}
             </span>
           </div>

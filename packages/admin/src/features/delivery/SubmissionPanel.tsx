@@ -1,4 +1,5 @@
 import type { CheckDto, TaskDetailDto } from '@stagegrid/shared'
+import { Link } from '@tanstack/react-router'
 import { CheckIcon, ExternalLinkIcon, XIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -58,7 +59,10 @@ export function SubmissionPanel({
         <Badge variant={waiting ? 'default' : 'secondary'}>{STATE_LABEL[sub.state]}</Badge>
       </div>
       <p className="text-xs">
-        Commit <code className="bg-muted rounded px-1">{short}</code>
+        {task.role === 'analyst' ? 'Version' : 'Commit'}{' '}
+        <code className="bg-muted rounded px-1">
+          {task.role === 'analyst' ? sub.artifacts[0]?.version : short}
+        </code>
         {sub.decidedAt && (
           <span className="text-muted-foreground">
             {' '}
@@ -79,6 +83,14 @@ export function SubmissionPanel({
               >
                 Pull request <ExternalLinkIcon className="size-3" />
               </a>
+            ) : a.kind === 'document' && a.documentId ? (
+              <Link
+                to="/p/$slug/docs/$docId"
+                params={{ slug, docId: a.documentId }}
+                className="underline underline-offset-2"
+              >
+                Requirement document, version {a.version}
+              </Link>
             ) : a.kind === 'branch' ? (
               <span>
                 Branch <code className="bg-muted rounded px-1">{a.branch}</code> pushed to {a.repo}
@@ -89,6 +101,48 @@ export function SubmissionPanel({
           </li>
         ))}
       </ul>
+      {sub.reviews.map((r) => (
+        <div
+          key={r.id}
+          role="region"
+          className="grid gap-1 rounded-md border p-2 text-xs"
+          aria-label={r.role === 'qa' ? 'QA report' : 'Review'}
+        >
+          <p className="font-medium">
+            {r.role === 'qa' ? 'QA' : 'Reviewer'}:{' '}
+            {r.verdict === 'pass'
+              ? 'passed'
+              : r.verdict === 'fail'
+                ? 'failed'
+                : 'asked for changes'}
+            <span className="text-muted-foreground font-normal"> · advice, you decide</span>
+          </p>
+          {r.summary && <p className="break-words">{r.summary}</p>}
+          {r.results.length > 0 && (
+            <ul className="grid gap-0.5">
+              {r.results.map((x, i) => (
+                <li key={i} className="break-words">
+                  {x.result === 'pass' ? '✓' : x.result === 'fail' ? '✗' : '–'} {x.criterion}
+                  {x.evidence && <span className="text-muted-foreground"> · {x.evidence}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {r.findings.length > 0 && (
+            <ul className="grid gap-0.5">
+              {r.findings.map((f, i) => (
+                <li key={i} className="break-words">
+                  <span className="font-medium">{f.severity}</span> {f.text}
+                  {f.file && <code className="bg-muted ml-1 rounded px-1">{f.file}</code>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+      {sub.reviewState === 'pending' && (
+        <p className="text-muted-foreground text-xs">Waiting for the Reviewer.</p>
+      )}
       <div className="grid gap-1" aria-label="Evidence">
         <p className="text-muted-foreground text-xs font-medium">Checks on this commit</p>
         {sub.checks.length === 0 && <p className="text-xs">No checks were reported.</p>}

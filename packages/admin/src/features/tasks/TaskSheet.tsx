@@ -62,6 +62,17 @@ export function TaskSheet({
               <RunPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
             )}
             <SubmissionPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
+            {task.blockedReason && (
+              <p role="status" className="bg-muted rounded-md p-2 text-xs">
+                {task.blockedReason}
+              </p>
+            )}
+            {task.reworkRounds > 0 && (
+              <p className="text-muted-foreground text-xs">
+                Sent back {task.reworkRounds} time{task.reworkRounds === 1 ? '' : 's'} by a reviewer
+                or QA.
+              </p>
+            )}
             <TaskActions slug={slug} task={task} canEdit={canEdit} />
             {task.scope && (
               <section className="grid gap-1">

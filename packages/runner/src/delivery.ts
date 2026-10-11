@@ -215,3 +215,31 @@ export async function buildDelivery(opts: {
     },
   }
 }
+
+/**
+ * Leaves the review on the pull request as a comment, when the project works with pull requests. It is
+ * only ever a comment: a Reviewer never approves, requests changes on GitHub, or merges.
+ */
+export async function postReviewComment(opts: {
+  claim: ClaimedRunDto
+  report: {
+    verdict: string
+    summary: string
+    findings: { severity: string; text: string; file: string | null }[]
+  }
+  config: Pick<RunnerConfig, 'ghBin'>
+}): Promise<void> {
+  const pr = opts.claim.examine?.artifacts.find((a) => a.kind === 'pull_request' && a.url)
+  if (!pr?.url || opts.claim.delivery.mode !== 'pull_request') return
+  const lines = opts.report.findings.map(
+    (f) => `- **${f.severity}** ${f.text}${f.file ? ` (\`${f.file}\`)` : ''}`,
+  )
+  const body = [
+    `Review of ${opts.claim.examine!.headCommit.slice(0, 7)}: ${opts.report.verdict === 'pass' ? 'no changes needed' : 'changes requested'}`,
+    opts.report.summary,
+    ...lines,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  await run(opts.config.ghBin, ['pr', 'comment', pr.url, '--body', body])
+}

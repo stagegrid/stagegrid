@@ -15,7 +15,7 @@ import {
 
 import { users } from './auth'
 import { employees } from './employees'
-import { runState, taskState } from './enums'
+import { runRole, runState, taskState } from './enums'
 import { projects } from './projects'
 import { taskContextRevisions, tasks } from './tasks'
 
@@ -93,6 +93,10 @@ export const runs = pgTable(
       .notNull()
       .references(() => taskContextRevisions.id),
     attempt: integer('attempt').notNull(),
+    /** What this run does: write requirements, build, review a delivery, or test one. */
+    role: runRole('role').notNull().default('dev'),
+    /** For a Reviewer or QA run: the delivery it examines. */
+    submissionId: uuid('submission_id'),
     state: runState('state').notNull().default('queued'),
     /** The task state to return to if the run is cancelled before finishing. */
     taskStateBefore: taskState('task_state_before').notNull(),
