@@ -1,8 +1,8 @@
 import type {
   CellProgressMode,
+  CellStatus,
   EmployeeProvider,
   EmployeeRole,
-  CellStatus,
   LinkKind,
   ProjectRole,
   TaskAction,
