@@ -39,7 +39,13 @@ export function runCommand(
   timeoutSeconds: number,
 ): Promise<{ exitCode: number; output: string }> {
   return new Promise((resolve) => {
-    const child = spawn(command, { cwd, shell: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    // Its own process group, so a timeout stops the shell and everything it started, not just the shell.
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
     let out = ''
     const collect = (c: Buffer) => {
       out += c.toString()
@@ -47,7 +53,13 @@ export function runCommand(
     }
     child.stdout.on('data', collect)
     child.stderr.on('data', collect)
-    const timer = setTimeout(() => child.kill('SIGKILL'), timeoutSeconds * 1000)
+    const timer = setTimeout(() => {
+      try {
+        process.kill(-child.pid!, 'SIGKILL')
+      } catch {
+        child.kill('SIGKILL')
+      }
+    }, timeoutSeconds * 1000)
     child.on('close', (code, signal) => {
       clearTimeout(timer)
       resolve({
