@@ -9,11 +9,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
 import { formatDateTime, relativeTime } from '@/lib/format'
 
 import { taskQuery } from './queries'
 import { TASK_ACTION_LABEL, TASK_STATE_LABEL } from './status'
 import { TaskActions } from './TaskActions'
+import { TaskContext } from './TaskContext'
 
 /** A task's scope, criteria, next actions and who did what, in a side sheet. */
 export function TaskSheet({
@@ -50,6 +52,8 @@ export function TaskSheet({
                 <span className="text-muted-foreground text-xs">Owner: {task.owner.name}</span>
               )}
             </div>
+            {task.employee && <EmployeeBadge employee={task.employee} />}
+            {task.employee && <TaskContext slug={slug} task={task} canEdit={canEdit} />}
             <TaskActions slug={slug} task={task} canEdit={canEdit} />
             {task.scope && (
               <section className="grid gap-1">

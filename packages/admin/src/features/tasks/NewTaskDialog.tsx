@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { ROLE_LABEL } from '@/features/employees/meta'
+import { useEmployees } from '@/features/employees/queries'
 import { errorMessage } from '@/lib/api'
 
 import { useTaskMutations } from './queries'
@@ -47,6 +49,8 @@ export function NewTaskDialog({
   const [title, setTitle] = useState('')
   const [scope, setScope] = useState('')
   const [criteria, setCriteria] = useState('')
+  const [employeeId, setEmployeeId] = useState('none')
+  const { data: employees = [] } = useEmployees(slug)
 
   const fromCell = initialCellId
     ? board.items.flatMap((i) =>
@@ -70,6 +74,7 @@ export function NewTaskDialog({
         cellId: cell.id,
         title: title.trim(),
         scope: scope.trim(),
+        employeeId: employeeId === 'none' ? null : employeeId,
         acceptanceCriteria: criteria
           .split('\n')
           .map((c) => c.trim())
@@ -78,6 +83,7 @@ export function NewTaskDialog({
       setTitle('')
       setScope('')
       setCriteria('')
+      setEmployeeId('none')
       onClose()
     } catch (e) {
       toast.error(errorMessage(e))
@@ -141,6 +147,27 @@ export function NewTaskDialog({
               This cell's status is set by hand today. Creating the task switches it to follow its
               tasks.
             </p>
+          )}
+          {employees.length > 0 && (
+            <FormField
+              id="task-employee"
+              label="Assign to"
+              hint="Optional. An AI employee needs pinned context before the task can be ready"
+            >
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger id="task-employee" className="w-full min-w-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No one yet</SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.displayName} · {ROLE_LABEL[e.role]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
           )}
           <FormField label="Title" id="task-title">
             <Input

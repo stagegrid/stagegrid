@@ -50,4 +50,33 @@ test('a stage follows its tasks: accept to finish, reopen with a reason to rewor
   await expect(
     page.getByRole('button', { name: 'Reports, Deploy: Doing, reworked once' }),
   ).toBeVisible()
+
+  // AI employees: create one, assign a task, and see that it can't be ready without pinned context.
+  await page.goto('/p/clinic-os/settings')
+  await page.getByRole('button', { name: 'New employee' }).click()
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Mali')
+  await page.getByRole('button', { name: 'Create employee' }).click()
+  await expect(page.getByText('Mali', { exact: true })).toBeVisible()
+
+  await page.goto('/p/clinic-os/tasks')
+  await page.getByRole('button', { name: 'New task' }).click()
+  await page.getByLabel('Item').click()
+  await page.getByRole('option', { name: 'Login' }).click()
+  await page.getByLabel('Stage').click()
+  await page.getByRole('option', { name: 'Implement' }).click()
+  await page.getByLabel('Assign to').click()
+  await page.getByRole('option', { name: /Mali/ }).click()
+  await page.getByLabel('Title').fill('Email login')
+  await page.getByRole('button', { name: /create task/i }).click()
+  await page.getByRole('button', { name: /^Email login/ }).click()
+  await expect(page.getByText("can't start until you pin the context")).toBeVisible()
+  await page.getByRole('button', { name: 'Mark ready' }).click()
+  await expect(page.getByText(/isn't ready/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Pin context' }).click()
+  await page.getByLabel('Decisions').fill('Email and password only')
+  await page.getByRole('dialog').getByRole('button', { name: 'Pin context' }).click()
+  await expect(page.getByText('Revision 1')).toBeVisible()
+  await page.getByRole('button', { name: 'Mark ready' }).click()
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
 })

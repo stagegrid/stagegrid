@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBoard } from '@/features/board/queries'
+import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
 import { useProject } from '@/features/settings/queries'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +38,7 @@ function TaskCard({ task, onOpen }: { task: BoardTaskDto; onOpen: () => void }) 
         )}
         {task.owner && <span className="text-muted-foreground ml-auto">{task.owner.name}</span>}
       </span>
+      {task.employee && <EmployeeBadge employee={task.employee} />}
     </button>
   )
 }
