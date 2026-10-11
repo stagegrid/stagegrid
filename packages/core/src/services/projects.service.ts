@@ -40,6 +40,8 @@ export function toProjectDto(
     stats,
     nextRelease,
     defaultReleasePhases: p.defaultReleasePhases,
+    delivery: p.delivery,
+    team: p.team,
   }
 }
 
@@ -182,6 +184,7 @@ export async function updateProject(
         timezone: input.timezone ?? project.timezone,
         staleDays: input.staleDays ?? project.staleDays,
         defaultReleasePhases: input.defaultReleasePhases ?? project.defaultReleasePhases,
+        delivery: input.delivery ?? project.delivery,
         updatedAt: ctx.now(),
       })
       .where(eq(projects.id, project.id))

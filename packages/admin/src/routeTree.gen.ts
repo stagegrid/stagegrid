@@ -17,11 +17,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
+import { Route as AppAdminRunnersRouteImport } from './routes/_app.admin.runners'
 import { Route as AppAdminTemplatesRouteImport } from './routes/_app.admin.templates'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as PrintSlugDocIdRouteImport } from './routes/print.$slug.$docId'
 import { Route as AppPSlugIndexRouteImport } from './routes/_app.p.$slug.index'
 import { Route as AppPSlugSettingsRouteImport } from './routes/_app.p.$slug.settings'
+import { Route as AppPSlugTasksRouteImport } from './routes/_app.p.$slug.tasks'
 import { Route as AppPSlugTimelineRouteImport } from './routes/_app.p.$slug.timeline'
 import { Route as AppPSlugDocsIndexRouteImport } from './routes/_app.p.$slug.docs.index'
 import { Route as AppPSlugDocsDocIdRouteImport } from './routes/_app.p.$slug.docs.$docId'
@@ -67,6 +69,11 @@ const AppProjectsRoute = AppProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRunnersRoute = AppAdminRunnersRouteImport.update({
+  id: '/admin/runners',
+  path: '/admin/runners',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminTemplatesRoute = AppAdminTemplatesRouteImport.update({
   id: '/admin/templates',
   path: '/admin/templates',
@@ -90,6 +97,11 @@ const AppPSlugIndexRoute = AppPSlugIndexRouteImport.update({
 const AppPSlugSettingsRoute = AppPSlugSettingsRouteImport.update({
   id: '/p/$slug/settings',
   path: '/p/$slug/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPSlugTasksRoute = AppPSlugTasksRouteImport.update({
+  id: '/p/$slug/tasks',
+  path: '/p/$slug/tasks',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPSlugTimelineRoute = AppPSlugTimelineRouteImport.update({
@@ -127,10 +139,12 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/runners': typeof AppAdminRunnersRoute
   '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug/': typeof AppPSlugIndexRoute
   '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -146,10 +160,12 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/profile': typeof AppProfileRoute
   '/projects': typeof AppProjectsRoute
+  '/admin/runners': typeof AppAdminRunnersRoute
   '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/p/$slug': typeof AppPSlugIndexRoute
   '/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -167,10 +183,12 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/projects': typeof AppProjectsRoute
+  '/_app/admin/runners': typeof AppAdminRunnersRoute
   '/_app/admin/templates': typeof AppAdminTemplatesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/print/$slug/$docId': typeof PrintSlugDocIdRoute
   '/_app/p/$slug/settings': typeof AppPSlugSettingsRoute
+  '/_app/p/$slug/tasks': typeof AppPSlugTasksRoute
   '/_app/p/$slug/timeline': typeof AppPSlugTimelineRoute
   '/_app/p/$slug/': typeof AppPSlugIndexRoute
   '/_app/p/$slug/docs/$docId': typeof AppPSlugDocsDocIdRoute
@@ -188,10 +206,12 @@ export interface FileRouteTypes {
     | '/setup'
     | '/profile'
     | '/projects'
+    | '/admin/runners'
     | '/admin/templates'
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
+    | '/p/$slug/tasks'
     | '/p/$slug/timeline'
     | '/p/$slug/'
     | '/p/$slug/docs/$docId'
@@ -207,10 +227,12 @@ export interface FileRouteTypes {
     | '/setup'
     | '/profile'
     | '/projects'
+    | '/admin/runners'
     | '/admin/templates'
     | '/admin/users'
     | '/print/$slug/$docId'
     | '/p/$slug/settings'
+    | '/p/$slug/tasks'
     | '/p/$slug/timeline'
     | '/p/$slug'
     | '/p/$slug/docs/$docId'
@@ -227,10 +249,12 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/profile'
     | '/_app/projects'
+    | '/_app/admin/runners'
     | '/_app/admin/templates'
     | '/_app/admin/users'
     | '/print/$slug/$docId'
     | '/_app/p/$slug/settings'
+    | '/_app/p/$slug/tasks'
     | '/_app/p/$slug/timeline'
     | '/_app/p/$slug/'
     | '/_app/p/$slug/docs/$docId'
@@ -307,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/runners': {
+      id: '/_app/admin/runners'
+      path: '/admin/runners'
+      fullPath: '/admin/runners'
+      preLoaderRoute: typeof AppAdminRunnersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/templates': {
       id: '/_app/admin/templates'
       path: '/admin/templates'
@@ -340,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$slug/settings'
       fullPath: '/p/$slug/settings'
       preLoaderRoute: typeof AppPSlugSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/p/$slug/tasks': {
+      id: '/_app/p/$slug/tasks'
+      path: '/p/$slug/tasks'
+      fullPath: '/p/$slug/tasks'
+      preLoaderRoute: typeof AppPSlugTasksRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/p/$slug/timeline': {
@@ -383,9 +421,11 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
   AppProjectsRoute: typeof AppProjectsRoute
+  AppAdminRunnersRoute: typeof AppAdminRunnersRoute
   AppAdminTemplatesRoute: typeof AppAdminTemplatesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPSlugSettingsRoute: typeof AppPSlugSettingsRoute
+  AppPSlugTasksRoute: typeof AppPSlugTasksRoute
   AppPSlugTimelineRoute: typeof AppPSlugTimelineRoute
   AppPSlugIndexRoute: typeof AppPSlugIndexRoute
   AppPSlugDocsDocIdRoute: typeof AppPSlugDocsDocIdRoute
@@ -397,9 +437,11 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
   AppProjectsRoute: AppProjectsRoute,
+  AppAdminRunnersRoute: AppAdminRunnersRoute,
   AppAdminTemplatesRoute: AppAdminTemplatesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPSlugSettingsRoute: AppPSlugSettingsRoute,
+  AppPSlugTasksRoute: AppPSlugTasksRoute,
   AppPSlugTimelineRoute: AppPSlugTimelineRoute,
   AppPSlugIndexRoute: AppPSlugIndexRoute,
   AppPSlugDocsDocIdRoute: AppPSlugDocsDocIdRoute,

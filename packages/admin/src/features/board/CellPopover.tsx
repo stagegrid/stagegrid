@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CellTasks } from '@/features/tasks/CellTasks'
 import { errorMessage } from '@/lib/api'
 import { formatDate, formatDateTime, relativeTime, toLocalInput } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -105,7 +106,7 @@ function CellEditor({
   }
 
   useEffect(() => {
-    if (!canEdit) return
+    if (!canEdit || current?.progressMode === 'tasks') return
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         if (e.key === 'Enter' && picked) void save(picked)
@@ -126,7 +127,7 @@ function CellEditor({
         <p className="text-muted-foreground truncate text-xs">{detail?.itemPath ?? item?.name}</p>
         <p className="text-sm font-medium">{stage?.name}</p>
       </div>
-      {canEdit ? (
+      {canEdit && current?.progressMode !== 'tasks' ? (
         <>
           <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Status">
             {STATUS_ORDER.map((s) => (
@@ -190,6 +191,15 @@ function CellEditor({
         )
       )}
 
+      {current && (
+        <CellTasks
+          board={board}
+          cell={current}
+          canEdit={canEdit}
+          isOwner={board.project.role === 'owner'}
+        />
+      )}
+
       {detail && <CellDetails board={board} open={open} detail={detail} canEdit={canEdit} />}
 
       <div className="grid gap-2 border-t pt-3">
@@ -228,7 +238,7 @@ function CellEditor({
                   >
                     {relativeTime(e.happenedAt)}
                   </span>
-                  {canEdit && (
+                  {canEdit && current?.progressMode !== 'tasks' && (
                     <DropdownMenu>
                       <DropdownMenuTrigger aria-label="Event actions">
                         <EllipsisIcon className="text-muted-foreground size-3.5" />

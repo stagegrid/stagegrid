@@ -54,6 +54,14 @@ The same `apply_changes` call can also:
 
 To fix a status change that was recorded wrong, read its id with `get_cell` and call `edit_event` (move `happenedAt` or `delete: true`). Confirm with the user first.
 
+## Cells managed by tasks
+
+A cell can track its progress through **tasks** instead of a status you set. Such a cell has `progressMode: "tasks"` and its status follows its required tasks: none → `todo`, all accepted → `done`, otherwise `doing` once any has started or been accepted. Optional and cancelled tasks are ignored.
+
+- Read tasks with `list_tasks`; move them with `task_action` (`mark_ready` → `start` → `submit` → `accept`, or `request_changes` / `reopen` / `cancel` with a `reason`). Pass the task's `version`.
+- `apply_changes` and `edit_event` on a task-managed cell return a conflict. Don't work around it: update the tasks, or ask the user before switching the cell back with `set_cell_progress_mode`.
+- Accepting a task is a decision for a person. Only call `accept` when the user told you to.
+
 ## Building the tree
 
 - `create_items` takes a whole tree at once: `{ "items": [{ "name": "Settings", "children": [{ "name": "Users" }] }] }`. Use `parent` to add under an existing item.

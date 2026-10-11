@@ -57,6 +57,13 @@ test('templates, project selection, and a document from draft to Word', async ({
   await expect(page.getByText('Paper records are slow.')).toBeVisible()
   await expect(page.getByLabel('Version')).toContainText('v2')
 
+  // A person approves one version; the next draft starts unapproved again.
+  await expect(page.getByText('Not approved')).toBeVisible()
+  await page.getByRole('button', { name: 'Approve this version' }).click()
+  await expect(page.getByText('Approved', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Withdraw approval' }).click()
+  await expect(page.getByText('Not approved')).toBeVisible()
+
   await page.getByRole('button', { name: 'Download' }).click()
   const href = await page.getByRole('menuitem', { name: 'Word (.docx)' }).getAttribute('href')
   const docx = await page.request.get(href!)

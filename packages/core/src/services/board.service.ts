@@ -56,6 +56,7 @@ export async function getBoard(ctx: ServiceContext, ref: string): Promise<BoardD
     ;(cellsMap[c.itemId] ??= {})[c.stageId] = {
       id: c.id,
       status: c.status,
+      progressMode: c.progressMode,
       rework: c.reworkCount,
       stale,
       hasComments: flags.withComments.has(c.id),
@@ -192,6 +193,7 @@ export async function getCellDetail(
     stageId: row.stage.id,
     stageName: row.stage.name,
     status: row.cell.status,
+    progressMode: row.cell.progressMode,
     rework: row.cell.reworkCount,
     stale: cellStale(row.cell, project, ctx.now()),
     plannedStart: row.cell.plannedStart,

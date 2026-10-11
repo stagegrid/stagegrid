@@ -99,6 +99,23 @@ export function useProjectStream(slug: string): { connected: boolean } {
     ]) {
       source.addEventListener(type, refetchBoard)
     }
+    source.addEventListener('task.updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['task', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['task-context', slug] })
+    })
+    source.addEventListener('question.updated', () => {
+      for (const key of ['attention', 'thread', 'questions', 'tasks', 'task'])
+        void queryClient.invalidateQueries({ queryKey: [key, slug] })
+    })
+    source.addEventListener('run.updated', () => {
+      for (const key of ['attention', 'thread', 'tasks', 'task'])
+        void queryClient.invalidateQueries({ queryKey: [key, slug] })
+    })
+    source.addEventListener('employee.updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['employees', slug] })
+      void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+    })
     source.addEventListener('release.updated', () => {
       refetchBoard()
       void queryClient.invalidateQueries({ queryKey: ['releases', slug] })

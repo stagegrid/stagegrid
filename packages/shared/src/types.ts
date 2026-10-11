@@ -1,4 +1,28 @@
-import type { CellStatus, LinkKind, ProjectRole, UserStatus, Via } from './constants'
+import type {
+  ArtifactKind,
+  Ceilings,
+  CellProgressMode,
+  CellStatus,
+  DeliverySettings,
+  EmployeeProvider,
+  EmployeeRole,
+  EvidenceSource,
+  LinkKind,
+  ProjectRole,
+  ProviderCapacity,
+  QuestionBatchState,
+  QuestionState,
+  ReviewState,
+  RunRole,
+  RunState,
+  SubmissionState,
+  TaskAction,
+  TaskRole,
+  TaskState,
+  TeamSettings,
+  UserStatus,
+  Via,
+} from './constants'
 
 export type StaleReason = 'doing_too_long' | 'past_planned_end'
 
@@ -34,6 +58,8 @@ export interface ProjectDto {
   /** Nearest active release by target date (phase 5). */
   nextRelease: { id: string; name: string; targetDate: string; percent: number } | null
   defaultReleasePhases: { name: string; freeze?: boolean }[]
+  delivery: DeliverySettings
+  team: TeamSettings
 }
 
 export interface StageDto {
@@ -63,6 +89,7 @@ export interface BoardItemDto {
 export interface BoardCellDto {
   id: string
   status: CellStatus
+  progressMode: CellProgressMode
   rework: number
   stale: StaleReason | null
   hasComments: boolean
@@ -114,6 +141,7 @@ export interface CellDetailDto {
   stageId: string
   stageName: string
   status: CellStatus
+  progressMode: CellProgressMode
   rework: number
   stale: StaleReason | null
   plannedStart: string | null
@@ -310,6 +338,10 @@ export interface DocumentSummaryDto {
   version: number
   updatedAt: string
   updatedBy: string
+  /** Who approved the current version, if anyone. A newer draft starts unapproved. */
+  approval: { version: number; approvedAt: string; approvedBy: string; note: string | null } | null
+  /** Every version a person approved and hasn't withdrawn. */
+  approvedVersions: number[]
 }
 
 export interface DocumentDto extends DocumentSummaryDto {
@@ -334,4 +366,318 @@ export interface DocumentDto extends DocumentSummaryDto {
   revisions: { version: number; createdAt: string; by: string }[]
   project: { slug: string; name: string; timezone: string; role: ProjectRole }
   viewUrl: string
+}
+
+export interface EmployeeDto {
+  id: string
+  displayName: string
+  role: EmployeeRole
+  instructions: string
+  provider: EmployeeProvider
+  model: string | null
+  avatar: string | null
+  version: number
+  archivedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** What a task card needs to show who the AI employee is. */
+export interface EmployeeRefDto {
+  id: string
+  displayName: string
+  role: EmployeeRole
+  avatar: string | null
+}
+
+export interface ContextManifestDto {
+  schemaVersion: 1
+  documents: { documentId: string; revisionId: string; version: number; title: string }[]
+  sources: { title: string; url: string | null; content: string; retrievedAt: string }[]
+  decisions: string[]
+}
+
+/** A document the pinned context uses that has changed since it was pinned. */
+export interface OutdatedDocumentDto {
+  documentId: string
+  title: string
+  pinnedVersion: number
+  currentVersion: number
+}
+
+export interface TaskContextSummaryDto {
+  revisionId: string
+  revisionNo: number
+  createdAt: string
+  outdated: OutdatedDocumentDto[]
+}
+
+export interface TaskContextDto extends TaskContextSummaryDto {
+  manifest: ContextManifestDto
+  manifestHash: string
+}
+
+/** The latest run of a task, enough to show what is happening and whether it needs a person. */
+export interface TaskRunSummaryDto {
+  id: string
+  role: RunRole
+  state: RunState
+  attempt: number
+  runnerName: string | null
+  failureReason: string | null
+  /** For waiting_for_capacity: when the run continues by itself. */
+  resumeAt: string | null
+  updatedAt: string
+}
+
+export interface RunDto extends TaskRunSummaryDto {
+  role: RunRole
+  taskId: string
+  employeeId: string
+  contextRevisionId: string
+  runtime: { provider: string; model: string | null }
+  summary: string | null
+  leaseExpiresAt: string | null
+  createdAt: string
+  claimedAt: string | null
+  finishedAt: string | null
+}
+
+export interface RunnerDto {
+  id: string
+  name: string
+  providers: string[]
+  version: string | null
+  maxConcurrent: number
+  /** Per provider; missing providers use the defaults. */
+  ceilings: Record<string, Ceilings>
+  /** Latest usage the runner reported, per provider. */
+  capacity: Record<string, ProviderCapacity>
+  online: boolean
+  lastSeenAt: string | null
+  projectIds: string[]
+  revokedAt: string | null
+  createdAt: string
+}
+
+export interface RunnerEnrollmentDto {
+  id: string
+  name: string
+  /** Shown once; only its hash is stored. */
+  token: string
+  projectIds: string[]
+  expiresAt: string
+}
+
+/** What a runner receives when it claims a run: everything needed, nothing it has to look up. */
+export interface ClaimedRunDto {
+  run: {
+    id: string
+    attempt: number
+    fencingToken: number
+    leaseExpiresAt: string
+    sessionRef: string | null
+    /** Events already recorded for this run; the runner numbers new ones after it. */
+    lastSequence: number
+    runtime: { provider: string; model: string | null; instructions: string }
+  }
+  project: { id: string; slug: string; name: string }
+  employee: { id: string; displayName: string; role: string }
+  task: { id: string; title: string; scope: string; acceptanceCriteria: string[] }
+  context: TaskContextDto
+  /** The pinned document revisions as Markdown, so the runner needn't fetch anything else. */
+  documents: {
+    documentId: string
+    revisionId: string
+    version: number
+    title: string
+    markdown: string
+  }[]
+  /** How far the work may leave this machine: nothing, a pushed branch, or a pull request. */
+  delivery: DeliverySettings
+  role: RunRole
+  /** A Reviewer or QA run works at this exact commit in a fresh checkout, not on Dev's branch. */
+  checkout: string | null
+  /** The delivery a Reviewer or QA run examines. */
+  examine: {
+    headCommit: string
+    summary: string
+    artifacts: ArtifactDto[]
+    checks: CheckDto[]
+  } | null
+  /** What a Reviewer or QA sent back, for the Dev to address. */
+  feedback: { source: string; summary: string; findings: FindingDto[] }[]
+  /** For an Analyst run: the document templates it can fill in. */
+  analyst: {
+    itemPath: string
+    templates: {
+      key: string
+      name: string
+      sections: { id: string; number: string; title: string }[]
+    }[]
+  } | null
+  /** Answers people gave to the employee's earlier questions, oldest first. */
+  answers: { question: string; answer: string }[]
+}
+
+export interface QuestionDto {
+  id: string
+  position: number
+  prompt: string
+  options: string[]
+  state: QuestionState
+  answer: string | null
+  changesScope: boolean
+  answeredBy: { userId: string; name: string } | null
+  answeredAt: string | null
+}
+
+export interface QuestionBatchDto {
+  id: string
+  taskId: string
+  runId: string
+  contextRevisionId: string
+  state: QuestionBatchState
+  /** Answered, but the continuation waits for a new pinned context (a scope change). */
+  holdForContext: boolean
+  createdAt: string
+  closedAt: string | null
+  questions: QuestionDto[]
+}
+
+/** Something a person needs to act on: answer, look at a failed run, accept work. */
+export interface AttentionItemDto {
+  kind: 'question' | 'run_problem' | 'acceptance' | 'rework_limit' | 'handoff_blocked'
+  taskId: string
+  taskTitle: string
+  itemPath: string
+  stageName: string
+  employee: EmployeeRefDto | null
+  at: string
+  summary: string
+}
+
+export interface ThreadItemDto {
+  id: string
+  kind: 'task_event' | 'progress' | 'log' | 'question' | 'answer' | 'review'
+  at: string
+  actor: { name: string; via: Via; isEmployee: boolean }
+  text: string
+  /** Extra detail the reader can expand (a reason, the options offered). */
+  detail: string | null
+}
+
+export interface QueuedRunDto {
+  id: string
+  projectId: string
+  taskTitle: string
+  attempt: number
+  provider: string
+}
+
+export interface ArtifactDto {
+  artifactId: string
+  /** For a requirement document: which one and which version. */
+  documentId?: string
+  version?: number
+  kind: ArtifactKind
+  url: string | null
+  repo: string | null
+  branch: string | null
+  headCommit: string
+}
+
+export interface CheckDto {
+  command: string
+  exitCode: number
+  commit: string
+  source: EvidenceSource
+  output: string | null
+}
+
+/** What a run delivered and how well it is backed up. A person's acceptance is bound to this commit. */
+export interface FindingDto {
+  severity: string
+  text: string
+  file: string | null
+}
+
+/** What a Reviewer or QA concluded about a delivery. It is advice to the person who accepts. */
+export interface ReviewDto {
+  id: string
+  role: 'reviewer' | 'qa'
+  verdict: string
+  summary: string
+  findings: FindingDto[]
+  results: { criterion: string; result: string; evidence: string }[]
+  runId: string
+  createdAt: string
+}
+
+export interface SubmissionDto {
+  id: string
+  runId: string
+  state: SubmissionState
+  headCommit: string
+  summary: string
+  contextRevisionId: string
+  artifacts: ArtifactDto[]
+  checks: CheckDto[]
+  /** Checks that ran against the delivered commit, and how many of them passed. */
+  evidence: { onCommit: number; passing: number; failing: number; strongest: EvidenceSource | null }
+  createdAt: string
+  decidedAt: string | null
+  decidedBy: string | null
+  decisionReason: string | null
+  reviewState: ReviewState
+  reviews: ReviewDto[]
+}
+
+export interface TaskDto {
+  id: string
+  role: TaskRole | null
+  reworkRounds: number
+  blockedReason: string | null
+  parentTaskId: string | null
+  cellId: string
+  title: string
+  scope: string
+  acceptanceCriteria: string[]
+  required: boolean
+  state: TaskState
+  version: number
+  owner: { userId: string; name: string } | null
+  employee: EmployeeRefDto | null
+  /** The latest pinned context, or null when none has been pinned. */
+  context: TaskContextSummaryDto | null
+  /** The latest run, if any. */
+  run: TaskRunSummaryDto | null
+  /** The latest delivery by a run, if any. */
+  submission: SubmissionDto | null
+  /** What a person can do next from this state. */
+  actions: TaskAction[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskEventDto {
+  id: string
+  fromState: TaskState | null
+  toState: TaskState
+  action: string
+  actor: ActorDto
+  reason: string | null
+  createdAt: string
+}
+
+/** A task with where it sits on the board, for the Kanban view. */
+export interface BoardTaskDto extends TaskDto {
+  itemId: string
+  itemPath: string
+  stageId: string
+  stageName: string
+}
+
+export interface TaskDetailDto extends BoardTaskDto {
+  events: TaskEventDto[]
 }

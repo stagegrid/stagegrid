@@ -14,12 +14,15 @@ import { requestId, requestLog, securityHeaders, withDeps } from './middleware/c
 import { originCheck } from './middleware/origin'
 import { authRoutes } from './routes/auth'
 import { docRoutes } from './routes/docs'
+import { employeeRoutes } from './routes/employees'
 import { mcpRoutes } from './routes/mcp'
 import { oauthApiRoutes, oauthRoutes } from './routes/oauth'
 import { projectRoutes } from './routes/projects'
 import { releaseRoutes } from './routes/releases'
+import { runRoutes } from './routes/runs'
 import { skillRoutes } from './routes/skill'
 import { streamRoutes } from './routes/stream'
+import { taskRoutes } from './routes/tasks'
 import { userRoutes } from './routes/users'
 
 const MB = 1024 * 1024
@@ -68,6 +71,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', userRoutes)
   api.route('/', projectRoutes)
   api.route('/', releaseRoutes)
+  api.route('/', taskRoutes)
+  api.route('/', employeeRoutes)
+  api.route('/', runRoutes)
   api.route('/', docRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)

@@ -4,12 +4,15 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { ErrorState, PageHeader } from '@/components/page-state'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DeliverySection } from '@/features/settings/DeliverySection'
 import { DocumentsSection } from '@/features/settings/DocumentsSection'
+import { EmployeesSection } from '@/features/settings/EmployeesSection'
 import { GeneralSection } from '@/features/settings/GeneralSection'
 import { MembersSection } from '@/features/settings/MembersSection'
 import { useProject } from '@/features/settings/queries'
 import { ReleasePhasesSection } from '@/features/settings/ReleasePhasesSection'
 import { StagesSection } from '@/features/settings/StagesSection'
+import { TeamSection } from '@/features/settings/TeamSection'
 
 export const Route = createFileRoute('/_app/p/$slug/settings')({
   component: function SettingsRoute() {
@@ -36,6 +39,9 @@ export const Route = createFileRoute('/_app/p/$slug/settings')({
           <GeneralSection project={project} readOnly={readOnly} />
           <StagesSection slug={project.slug} readOnly={readOnly} />
           <MembersSection slug={project.slug} readOnly={readOnly} />
+          <EmployeesSection slug={project.slug} readOnly={readOnly} />
+          <DeliverySection project={project} readOnly={readOnly} />
+          <TeamSection project={project} readOnly={readOnly} />
           <ReleasePhasesSection project={project} readOnly={readOnly} />
           <DocumentsSection slug={project.slug} readOnly={readOnly} />
           <section className="grid gap-2">

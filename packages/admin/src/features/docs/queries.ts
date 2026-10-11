@@ -50,6 +50,22 @@ export function useDocumentMutations(slug: string, id: string) {
       mutationFn: () => api(`${p(slug)}/documents/${id}`, { method: 'DELETE' }),
       onSuccess,
     }),
+    approve: useMutation({
+      mutationFn: (v: { version: number; note?: string }) =>
+        api(`${p(slug)}/documents/${id}/approve`, { body: v }),
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+        return onSuccess()
+      },
+    }),
+    revoke: useMutation({
+      mutationFn: (version: number) =>
+        api(`${p(slug)}/documents/${id}/revoke-approval`, { body: { version } }),
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ['tasks', slug] })
+        return onSuccess()
+      },
+    }),
   }
 }
 

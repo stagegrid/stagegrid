@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { users } from './auth'
-import { actorVia, cellStatus, linkKind, roundOutcome } from './enums'
+import { actorVia, cellProgressMode, cellStatus, linkKind, roundOutcome } from './enums'
 import { items, stages } from './projects'
 
 const ts = (name: string) => timestamp(name, { withTimezone: true })
@@ -29,6 +29,8 @@ export const cells = pgTable(
       .notNull()
       .references(() => stages.id, { onDelete: 'cascade' }),
     status: cellStatus('status').notNull().default('todo'),
+    /** `tasks`: the status is derived from the cell's required tasks and can't be written directly. */
+    progressMode: cellProgressMode('progress_mode').notNull().default('manual'),
     statusChangedAt: ts('status_changed_at'),
     reworkCount: integer('rework_count').notNull().default(0),
     plannedStart: date('planned_start', { mode: 'string' }),
