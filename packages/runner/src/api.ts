@@ -32,6 +32,13 @@ export interface RunEventBody {
   fencingToken: number
 }
 
+export interface AskBody {
+  questions: { prompt: string; options: string[] }[]
+  contextRevisionId: string
+  idempotencyKey: string
+  fencingToken: number
+}
+
 export interface CompleteBody {
   fencingToken: number
   idempotencyKey: string
@@ -138,6 +145,9 @@ export class RunnerApi {
   }
   event(runId: string, body: RunEventBody): Promise<{ duplicate: boolean }> {
     return this.request('POST', `/runs/${runId}/events`, body)
+  }
+  ask(runId: string, body: AskBody): Promise<unknown> {
+    return this.request('POST', `/runs/${runId}/questions`, body)
   }
   complete(runId: string, body: CompleteBody): Promise<unknown> {
     return this.request('POST', `/runs/${runId}/complete`, body)

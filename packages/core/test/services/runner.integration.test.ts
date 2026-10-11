@@ -15,6 +15,7 @@ import { RunnerLoop } from '../../../runner/src/loop'
 import { runEvents, runs } from '../../src/db/schema'
 import { getBoard } from '../../src/services/board.service'
 import { createEmployee } from '../../src/services/employees.service'
+import { answerQuestion, listBatches } from '../../src/services/questions.service'
 import { createEnrollment } from '../../src/services/runners.service'
 import { cancelRun, listRuns, startRun } from '../../src/services/runs.service'
 import {
@@ -24,6 +25,7 @@ import {
   setCellProgressMode,
   transitionTask,
 } from '../../src/services/tasks.service'
+import { getAttention } from '../../src/services/thread.service'
 import { makeApp } from '../helpers/app'
 import { useTestDatabase } from '../helpers/db'
 import { createUser, makeCtx, seedProject } from '../helpers/factories'
@@ -38,7 +40,25 @@ const out = (e) => process.stdout.write(JSON.stringify(e) + '\\n')
 const args = process.argv.slice(2)
 const sid = args[args.indexOf('--session-id') + 1] ?? args[args.indexOf('--resume') + 1]
 out({ type: 'system', subtype: 'init', session_id: sid })
-if (process.env.FAKE_MODE === 'hang') {
+const resuming = args.includes('--resume')
+const prompt = args[args.length - 1]
+if (process.env.FAKE_MODE === 'ask' && !resuming) {
+  out({
+    type: 'result', subtype: 'success', is_error: false, session_id: sid,
+    structured_output: {
+      status: 'needs_answers', summary: 'Two rules are unclear', commit: null, tests: null,
+      questions: [
+        { prompt: 'Reject the second booking?', options: ['Yes', 'No'] },
+        { prompt: 'Slot length in minutes?', options: [] },
+      ],
+    },
+  })
+} else if (process.env.FAKE_MODE === 'ask' && !prompt.includes('Answer: 30')) {
+  out({
+    type: 'result', subtype: 'success', is_error: false, session_id: sid,
+    structured_output: { status: 'blocked', summary: 'The answers did not reach me', commit: null, tests: null, questions: [] },
+  })
+} else if (process.env.FAKE_MODE === 'hang') {
   setInterval(() => out({ type: 'assistant', message: { content: [{ type: 'text', text: 'still working' }] } }), 60)
 } else {
   out({ type: 'assistant', message: { content: [{ type: 'text', text: 'Adding the feature' }] } })
@@ -47,7 +67,7 @@ if (process.env.FAKE_MODE === 'hang') {
   const commit = execSync('git rev-parse HEAD').toString().trim()
   out({
     type: 'result', subtype: 'success', is_error: false, session_id: sid, total_cost_usd: 0.1,
-    structured_output: { status: 'submitted', summary: 'Added email login', commit, tests: '3 passed' },
+    structured_output: { status: 'submitted', summary: 'Added email login', commit, tests: '3 passed', questions: [] },
   })
 }
 `
@@ -199,6 +219,49 @@ describe('a real runner against a real server', () => {
       expect(task.state).toBe('ready')
       expect(task.run).toMatchObject({ state: 'cancelled' })
       expect(s.loop.activeRuns).toBe(0)
+    } finally {
+      delete process.env.FAKE_MODE
+      s.close()
+    }
+  })
+
+  it('asks its questions, waits for the answers, then continues the same session with them', async () => {
+    process.env.FAKE_MODE = 'ask'
+    const s = await setup()
+    try {
+      await s.loop.tick()
+      await s.loop.idle()
+      let task = await getTask(s.ctx, s.project.id, s.task.id)
+      expect(task.state).toBe('waiting_for_answer')
+      expect(task.run).toMatchObject({ state: 'waiting_for_answer' })
+      const [batch] = await listBatches(s.ctx, s.project.id, s.task.id)
+      expect(batch!.questions.map((q) => q.prompt)).toEqual([
+        'Reject the second booking?',
+        'Slot length in minutes?',
+      ])
+      expect((await getAttention(s.ctx, s.project.id))[0]).toMatchObject({ kind: 'question' })
+      const [first] = await s.db.db.select().from(runs).where(eq(runs.id, s.run.id))
+      expect(first!.sessionRef).toBeTruthy()
+
+      await answerQuestion(s.ctx, s.project.id, batch!.questions[0]!.id, {
+        answer: 'Yes',
+        idempotencyKey: 'a1',
+        changesScope: false,
+      })
+      await answerQuestion(s.ctx, s.project.id, batch!.questions[1]!.id, {
+        answer: '30',
+        idempotencyKey: 'a2',
+        changesScope: false,
+      })
+      await s.loop.tick()
+      await s.loop.idle()
+
+      task = await getTask(s.ctx, s.project.id, s.task.id)
+      expect(task.state).toBe('ready_for_acceptance')
+      expect(task.run).toMatchObject({ state: 'succeeded', attempt: 1 })
+      const [done] = await s.db.db.select().from(runs).where(eq(runs.id, s.run.id))
+      expect(done!.sessionRef).toBe(first!.sessionRef)
+      expect(done!.summary).toContain('Added email login')
     } finally {
       delete process.env.FAKE_MODE
       s.close()

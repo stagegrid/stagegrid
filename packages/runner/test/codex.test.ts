@@ -130,6 +130,27 @@ describe('CodexAdapter.run with a fake CLI', () => {
     expect(outcome).toMatchObject({ kind: 'finished', summary: 'got it' })
   })
 
+  it('turns needs_answers into questions', async () => {
+    const msg = JSON.stringify({
+      status: 'needs_answers',
+      summary: 'Unclear',
+      questions: [{ prompt: 'Slot length?', options: ['15', '30'] }],
+      commit: null,
+      tests: null,
+    })
+    const { outcome } = await run(
+      jsonl(
+        { type: 'item.completed', item: { type: 'agent_message', text: msg } },
+        { type: 'turn.completed' },
+      ),
+    )
+    expect(outcome).toEqual({
+      kind: 'needs_answers',
+      summary: 'Unclear',
+      questions: [{ prompt: 'Slot length?', options: ['15', '30'] }],
+    })
+  })
+
   it('treats a stream that just ends as interrupted, as Codex does on cancel', async () => {
     const { outcome } = await run(jsonl({ type: 'thread.started', thread_id: 'th' }))
     expect(outcome).toMatchObject({ kind: 'interrupted' })

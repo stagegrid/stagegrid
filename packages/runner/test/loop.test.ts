@@ -7,7 +7,7 @@ import type { ClaimedRunDto, QueuedRunDto } from '@stagegrid/shared'
 import { describe, expect, it } from 'vitest'
 
 import type { AdapterInput, AdapterOutcome, AgentAdapter } from '../src/adapters/types'
-import { type CompleteBody, type RunEventBody, RunnerApiError } from '../src/api'
+import { type AskBody, type CompleteBody, type RunEventBody, RunnerApiError } from '../src/api'
 import { configSchema } from '../src/config'
 import { type LoopApi, RunnerLoop } from '../src/loop'
 
@@ -18,6 +18,8 @@ class FakeApi implements LoopApi {
   heartbeatError: RunnerApiError | null = null
   events: RunEventBody[] = []
   completions: CompleteBody[] = []
+  asked: { runId: string; body: AskBody }[] = []
+  askError: RunnerApiError | null = null
   capacity: unknown[] = []
   heartbeats = 0
 
@@ -38,6 +40,11 @@ class FakeApi implements LoopApi {
   async event(_: string, body: RunEventBody) {
     this.events.push(body)
     return { duplicate: false }
+  }
+  async ask(runId: string, body: AskBody) {
+    if (this.askError) throw this.askError
+    this.asked.push({ runId, body })
+    return {}
   }
   async complete(_: string, body: CompleteBody) {
     this.completions.push(body)
@@ -322,6 +329,76 @@ describe('RunnerLoop', () => {
     expect(api.completions).toEqual([
       expect.objectContaining({ outcome: 'interrupted', failureReason: 'stopped' }),
     ])
+  })
+
+  it('asks its questions and stops, without completing the run', async () => {
+    const adapter = new FakeAdapter(async () => ({
+      kind: 'needs_answers',
+      summary: 'Two rules are unclear',
+      questions: [
+        { prompt: 'Reject the second booking?', options: ['Yes', 'No'] },
+        { prompt: 'Slot length?', options: [] },
+      ],
+    }))
+    const { api, loop, enqueue } = await world(adapter)
+    enqueue('run-ask')
+    await loop.tick()
+    await loop.idle()
+    expect(api.asked).toEqual([
+      {
+        runId: 'run-ask',
+        body: {
+          questions: [
+            { prompt: 'Reject the second booking?', options: ['Yes', 'No'] },
+            { prompt: 'Slot length?', options: [] },
+          ],
+          contextRevisionId: 'r1',
+          idempotencyKey: 'run-ask:4:ask',
+          fencingToken: 4,
+        },
+      },
+    ])
+    expect(api.completions).toEqual([])
+  })
+
+  it('fails the run if its questions cannot be asked, but not if the lease is gone', async () => {
+    const outcome: AdapterOutcome = {
+      kind: 'needs_answers',
+      summary: 's',
+      questions: [{ prompt: 'Q?', options: [] }],
+    }
+    const failing = await world(new FakeAdapter(async () => outcome))
+    failing.api.askError = new RunnerApiError(409, 'conflict', 'Already open', {
+      code: 'batch_open',
+    })
+    failing.enqueue('a')
+    await failing.loop.tick()
+    await failing.loop.idle()
+    expect(failing.api.completions[0]).toMatchObject({ outcome: 'failed' })
+    expect(failing.api.completions[0]!.failureReason).toMatch(/Couldn't ask its questions/)
+
+    const gone = await world(new FakeAdapter(async () => outcome))
+    gone.api.askError = stale
+    gone.enqueue('b')
+    await gone.loop.tick()
+    await gone.loop.idle()
+    expect(gone.api.completions).toEqual([])
+  })
+
+  it('continues with the answers it was given', async () => {
+    const adapter = new FakeAdapter(async () => finished())
+    const { api, loop, enqueue } = await world(adapter)
+    enqueue('run-cont', { sessionRef: 'sess-3' })
+    api.claims.get('run-cont')!.answers = [
+      { question: 'Reject the second booking?', answer: 'Yes' },
+    ]
+    await loop.tick()
+    await loop.idle()
+    const prompt = adapter.inputs[0]!.prompt
+    expect(prompt).toContain('Answers to your questions')
+    expect(prompt).toContain('Reject the second booking?')
+    expect(prompt).toContain('Answer: Yes')
+    expect(prompt).toContain('questions have been answered')
   })
 
   it('fails a run for a project this runner has no repository for', async () => {

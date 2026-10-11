@@ -234,6 +234,10 @@ export function classifyClaude(
 
   if (subtype === 'success' && result.is_error !== true) {
     const parsed = parseDevResult(result.structured_output)
+    if (parsed?.status === 'needs_answers')
+      return parsed.questions.length
+        ? { kind: 'needs_answers', summary: parsed.summary, questions: parsed.questions }
+        : { kind: 'failed', reason: 'The agent asked for answers but listed no questions.' }
     if (parsed)
       return {
         kind: 'finished',

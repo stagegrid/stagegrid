@@ -257,6 +257,10 @@ export class CodexAdapter implements AgentAdapter {
           kind: 'failed',
           reason: 'The agent finished without the required structured result.',
         }
+      if (parsed.status === 'needs_answers')
+        return parsed.questions.length
+          ? { kind: 'needs_answers', summary: parsed.summary, questions: parsed.questions }
+          : { kind: 'failed', reason: 'The agent asked for answers but listed no questions.' }
       return {
         kind: 'finished',
         summary: parsed.summary,

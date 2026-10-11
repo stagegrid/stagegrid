@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto'
 import type { ClaimedRunDto, QueuedRunDto } from '@stagegrid/shared'
 
 import type { AdapterEvent, AdapterOutcome, AgentAdapter } from './adapters/types'
-import { type CapacityBody, type CompleteBody, type RunEventBody, RunnerApiError } from './api'
+import {
+  type AskBody,
+  type CapacityBody,
+  type CompleteBody,
+  type RunEventBody,
+  RunnerApiError,
+} from './api'
 import type { RunnerConfig } from './config'
 import { systemPrompt, taskPrompt } from './prompt'
 import { ensureWorktree } from './workspace'
@@ -14,6 +20,7 @@ export interface LoopApi {
   claim(runId: string, idempotencyKey: string): Promise<ClaimedRunDto>
   heartbeat(runId: string, fencingToken: number): Promise<{ leaseExpiresAt: string }>
   event(runId: string, body: RunEventBody): Promise<{ duplicate: boolean }>
+  ask(runId: string, body: AskBody): Promise<unknown>
   complete(runId: string, body: CompleteBody): Promise<unknown>
   reportCapacity(input: CapacityBody): Promise<void>
 }
@@ -272,6 +279,24 @@ export class RunnerLoop {
             .filter(Boolean)
             .join('\n\n'),
         })
+      case 'needs_answers':
+        // The run stops here: Stagegrid shows the questions and queues the run again once answered.
+        return withRetry(() =>
+          api.ask(runId, {
+            questions: outcome.questions,
+            contextRevisionId: claim.context.revisionId,
+            idempotencyKey: `${runId}:${token}:ask`,
+            fencingToken: token,
+          }),
+        )
+          .then(() => undefined)
+          .catch((e: unknown) => {
+            if (e instanceof RunnerApiError && e.isStaleLease) return
+            return complete({
+              outcome: 'failed',
+              failureReason: `Couldn't ask its questions: ${(e as Error).message}`,
+            })
+          })
       case 'capacity':
         await send('capacity_wait', {
           ...(outcome.resetsAt ? { resetsAt: outcome.resetsAt } : {}),

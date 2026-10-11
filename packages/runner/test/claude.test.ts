@@ -108,6 +108,46 @@ describe('classifyClaude', () => {
     expect(r).toMatchObject({ kind: 'finished', blocked: true })
   })
 
+  it('turns needs_answers into questions, and refuses an empty list', () => {
+    const asks = classifyClaude(
+      {
+        ...ok,
+        structured_output: {
+          status: 'needs_answers',
+          summary: 'Unclear rules',
+          questions: [{ prompt: 'Reject the second booking?', options: ['Yes', 'No'] }],
+          commit: null,
+          tests: null,
+        },
+      },
+      null,
+      0,
+      '',
+    )
+    expect(asks).toEqual({
+      kind: 'needs_answers',
+      summary: 'Unclear rules',
+      questions: [{ prompt: 'Reject the second booking?', options: ['Yes', 'No'] }],
+    })
+    expect(
+      classifyClaude(
+        {
+          ...ok,
+          structured_output: {
+            status: 'needs_answers',
+            summary: 's',
+            questions: [],
+            commit: null,
+            tests: null,
+          },
+        },
+        null,
+        0,
+        '',
+      ),
+    ).toMatchObject({ kind: 'failed' })
+  })
+
   it('never trusts a "success" without the structured result', () => {
     expect(classifyClaude({ ...ok }, null, 0, '')).toMatchObject({ kind: 'failed' })
     expect(
