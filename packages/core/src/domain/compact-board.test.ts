@@ -50,6 +50,7 @@ const board: BoardDto = {
       s1: {
         id: 'c1',
         status: 'done',
+        progressMode: 'manual',
         rework: 0,
         stale: null,
         hasComments: false,
@@ -58,6 +59,7 @@ const board: BoardDto = {
       s2: {
         id: 'c2',
         status: 'doing',
+        progressMode: 'manual',
         rework: 1,
         stale: 'doing_too_long',
         hasComments: false,
@@ -68,6 +70,7 @@ const board: BoardDto = {
       s1: {
         id: 'c3',
         status: 'skip',
+        progressMode: 'manual',
         rework: 0,
         stale: null,
         hasComments: false,
@@ -76,6 +79,7 @@ const board: BoardDto = {
       s2: {
         id: 'c4',
         status: 'todo',
+        progressMode: 'manual',
         rework: 0,
         stale: null,
         hasComments: false,
@@ -86,6 +90,7 @@ const board: BoardDto = {
       s1: {
         id: 'c5',
         status: 'todo',
+        progressMode: 'manual',
         rework: 0,
         stale: null,
         hasComments: false,
@@ -94,6 +99,7 @@ const board: BoardDto = {
       s2: {
         id: 'c6',
         status: 'todo',
+        progressMode: 'manual',
         rework: 0,
         stale: null,
         hasComments: false,

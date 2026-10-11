@@ -1,6 +1,15 @@
 import { z } from 'zod'
 
-import { CELL_STATUSES, LIMITS, LINK_KINDS, PATH_SEPARATOR, PROJECT_ROLES } from './constants'
+import {
+  CELL_PROGRESS_MODES,
+  CELL_STATUSES,
+  LIMITS,
+  LINK_KINDS,
+  PATH_SEPARATOR,
+  PROJECT_ROLES,
+  TASK_ACTIONS,
+  TASK_STATES,
+} from './constants'
 import { isValidTimeZone } from './time'
 
 export const nameSchema = (max: number) => z.string().trim().min(1).max(max)
@@ -267,3 +276,40 @@ export const saveDocDraftInput = z.object({
 })
 export const projectDocTemplatesInput = z.object({ templateIds: z.array(z.uuid()).max(100) })
 export type SaveDocDraftInput = z.infer<typeof saveDocDraftInput>
+
+// ---- tasks
+const criteriaSchema = z
+  .array(z.string().trim().min(1).max(LIMITS.acceptanceCriterion))
+  .max(LIMITS.acceptanceCriteria)
+
+export const createTaskInput = z.object({
+  cellId: z.uuid(),
+  title: nameSchema(LIMITS.taskTitle),
+  scope: z.string().trim().max(LIMITS.taskScope).default(''),
+  acceptanceCriteria: criteriaSchema.default([]),
+  required: z.boolean().default(true),
+  ownerUserId: z.uuid().nullable().default(null),
+})
+export const updateTaskInput = z.object({
+  expectedVersion: z.number().int().min(1),
+  title: nameSchema(LIMITS.taskTitle).optional(),
+  scope: z.string().trim().max(LIMITS.taskScope).optional(),
+  acceptanceCriteria: criteriaSchema.optional(),
+  required: z.boolean().optional(),
+  ownerUserId: z.uuid().nullable().optional(),
+})
+export const taskActionInput = z.object({
+  action: z.enum(TASK_ACTIONS),
+  expectedVersion: z.number().int().min(1),
+  reason: z.string().trim().min(1).max(LIMITS.reason).optional(),
+})
+export const listTasksQuery = z.object({
+  state: z.enum(TASK_STATES).optional(),
+  cellId: z.uuid().optional(),
+})
+export const setCellProgressModeInput = z.object({ mode: z.enum(CELL_PROGRESS_MODES) })
+
+export type CreateTaskInput = z.infer<typeof createTaskInput>
+export type UpdateTaskInput = z.infer<typeof updateTaskInput>
+export type TaskActionInput = z.infer<typeof taskActionInput>
+export type ListTasksQuery = z.infer<typeof listTasksQuery>

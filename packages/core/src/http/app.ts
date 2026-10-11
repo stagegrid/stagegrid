@@ -20,6 +20,7 @@ import { projectRoutes } from './routes/projects'
 import { releaseRoutes } from './routes/releases'
 import { skillRoutes } from './routes/skill'
 import { streamRoutes } from './routes/stream'
+import { taskRoutes } from './routes/tasks'
 import { userRoutes } from './routes/users'
 
 const MB = 1024 * 1024
@@ -68,6 +69,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   api.route('/', userRoutes)
   api.route('/', projectRoutes)
   api.route('/', releaseRoutes)
+  api.route('/', taskRoutes)
   api.route('/', docRoutes)
   api.route('/', streamRoutes)
   api.route('/', skillRoutes)

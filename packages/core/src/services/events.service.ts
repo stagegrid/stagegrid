@@ -11,6 +11,7 @@ import { withTx } from './context'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
 import { loadItems } from './structure'
+import { assertCellWritable } from './task-managed'
 
 const FUTURE_TOLERANCE_MS = 5 * 60_000
 
@@ -41,6 +42,7 @@ export async function editEvent(
         ),
       )
     if (!row) throw notFound('Event not found')
+    assertCellWritable(row.cell)
     const now = ctx.now()
     if (input.delete) {
       await tx

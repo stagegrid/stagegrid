@@ -37,6 +37,7 @@ function board(
             {
               id: `${id}${n}`,
               status,
+              progressMode: 'manual' as const,
               rework: 0,
               stale: stale && n === 0 ? 'doing_too_long' : null,
               hasComments: false,

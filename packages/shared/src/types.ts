@@ -1,4 +1,13 @@
-import type { CellStatus, LinkKind, ProjectRole, UserStatus, Via } from './constants'
+import type {
+  CellProgressMode,
+  CellStatus,
+  LinkKind,
+  ProjectRole,
+  TaskAction,
+  TaskState,
+  UserStatus,
+  Via,
+} from './constants'
 
 export type StaleReason = 'doing_too_long' | 'past_planned_end'
 
@@ -63,6 +72,7 @@ export interface BoardItemDto {
 export interface BoardCellDto {
   id: string
   status: CellStatus
+  progressMode: CellProgressMode
   rework: number
   stale: StaleReason | null
   hasComments: boolean
@@ -114,6 +124,7 @@ export interface CellDetailDto {
   stageId: string
   stageName: string
   status: CellStatus
+  progressMode: CellProgressMode
   rework: number
   stale: StaleReason | null
   plannedStart: string | null
@@ -334,4 +345,42 @@ export interface DocumentDto extends DocumentSummaryDto {
   revisions: { version: number; createdAt: string; by: string }[]
   project: { slug: string; name: string; timezone: string; role: ProjectRole }
   viewUrl: string
+}
+
+export interface TaskDto {
+  id: string
+  cellId: string
+  title: string
+  scope: string
+  acceptanceCriteria: string[]
+  required: boolean
+  state: TaskState
+  version: number
+  owner: { userId: string; name: string } | null
+  /** What a person can do next from this state. */
+  actions: TaskAction[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskEventDto {
+  id: string
+  fromState: TaskState | null
+  toState: TaskState
+  action: string
+  actor: ActorDto
+  reason: string | null
+  createdAt: string
+}
+
+/** A task with where it sits on the board, for the Kanban view. */
+export interface BoardTaskDto extends TaskDto {
+  itemId: string
+  itemPath: string
+  stageId: string
+  stageName: string
+}
+
+export interface TaskDetailDto extends BoardTaskDto {
+  events: TaskEventDto[]
 }

@@ -4,7 +4,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { Tx } from '../db/client'
 import { cellEvents, cellRounds, cells, projectMembers } from '../db/schema'
 import { type CellEventLike, computeCellHistory, sortEvents, statusAt } from '../domain/rounds'
-import { AppError, invalid } from '../errors'
+import { AppError, conflict, invalid } from '../errors'
 import { newId } from '../lib/ids'
 import { notify } from '../realtime/notify'
 import { requireProjectRole } from './access'
@@ -14,6 +14,7 @@ import { type ServiceContext, withTx } from './context'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
 import { type CellRow, loadItems, loadStages } from './structure'
+import { TASK_MANAGED_MESSAGE } from './task-managed'
 
 const FUTURE_TOLERANCE_MS = 5 * 60_000
 const MAX_INDIVIDUAL_EVENTS = 20
@@ -26,7 +27,7 @@ class DryRunRollback extends Error {
 
 interface ChangeError {
   index: number
-  code: 'not_found' | 'ambiguous_ref' | 'invalid'
+  code: 'not_found' | 'ambiguous_ref' | 'invalid' | 'task_managed_cell'
   message: string
   details?: unknown
 }
@@ -204,8 +205,23 @@ export async function applyChanges(
         }
         planned.set(cell.id, next)
       }
+      // A task-managed cell's status is derived from its tasks, so direct status writes are refused.
+      for (const r of resolved) {
+        if (r.change.status === undefined) continue
+        const cell = cellByKey.get(`${r.itemId}:${r.stageId}`)
+        if (cell?.progressMode === 'tasks') {
+          errors.push({
+            index: r.index,
+            code: 'task_managed_cell',
+            message: TASK_MANAGED_MESSAGE,
+            details: { cellId: cell.id },
+          })
+        }
+      }
       if (errors.length) {
         errors.sort((a, b) => a.index - b.index)
+        if (errors.every((e) => e.code === 'task_managed_cell'))
+          throw conflict(TASK_MANAGED_MESSAGE, { errors })
         throw invalid(
           `${new Set(errors.map((e) => e.index)).size} of ${input.changes.length} changes are invalid`,
           { errors },
