@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useBoard } from '@/features/board/queries'
 import { useProjectStream } from '@/features/board/useProjectStream'
 import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
+import { AttentionList } from '@/features/questions/AttentionList'
 import { isActiveRun, needsAttention, RUN_STATE_LABEL } from '@/features/runs/status'
 import { useProject } from '@/features/settings/queries'
 import { cn } from '@/lib/utils'
@@ -80,6 +81,7 @@ export function TasksPage({ slug }: { slug: string }) {
         )}
       </div>
       <div className="min-w-0 p-4">
+        <AttentionList slug={slug} onOpen={setOpenId} />
         {isLoading && <Skeleton className="h-64" />}
         {error && <ErrorState error={error} onRetry={() => void refetch()} />}
         {tasks && tasks.length === 0 && (

@@ -10,11 +10,12 @@ import {
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
+import { QuestionPanel } from '@/features/questions/QuestionPanel'
+import { Thread } from '@/features/questions/Thread'
 import { RunPanel } from '@/features/runs/RunPanel'
-import { formatDateTime, relativeTime } from '@/lib/format'
 
 import { taskQuery } from './queries'
-import { SYSTEM_ACTION_LABEL, TASK_ACTION_LABEL, TASK_STATE_LABEL } from './status'
+import { TASK_STATE_LABEL } from './status'
 import { TaskActions } from './TaskActions'
 import { TaskContext } from './TaskContext'
 
@@ -54,6 +55,7 @@ export function TaskSheet({
               )}
             </div>
             {task.employee && <EmployeeBadge employee={task.employee} />}
+            {task.employee && <QuestionPanel slug={slug} task={task} canEdit={canEdit} />}
             {task.employee && <TaskContext slug={slug} task={task} canEdit={canEdit} />}
             {task.employee && (
               <RunPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
@@ -79,39 +81,7 @@ export function TaskSheet({
                 </ul>
               </section>
             )}
-            <section className="grid gap-2">
-              <h3 className="text-muted-foreground text-xs font-medium uppercase">History</h3>
-              <ul className="grid gap-2">
-                {[...task.events].reverse().map((e) => (
-                  <li key={e.id} className="grid gap-0.5 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span>
-                        {e.action === 'create'
-                          ? 'Created'
-                          : (SYSTEM_ACTION_LABEL[e.action] ??
-                            TASK_ACTION_LABEL[e.action as keyof typeof TASK_ACTION_LABEL] ??
-                            e.action)}
-                      </span>
-                      <span
-                        className="text-muted-foreground ml-auto"
-                        title={formatDateTime(e.createdAt, timezone)}
-                      >
-                        {relativeTime(e.createdAt)}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground flex gap-1.5">
-                      <span>{e.actor.name}</span>
-                      <Badge variant="outline" className="h-4 px-1 text-[10px] uppercase">
-                        {e.actor.via}
-                      </Badge>
-                    </div>
-                    {e.reason && (
-                      <p className="text-muted-foreground break-words italic">“{e.reason}”</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <Thread slug={slug} taskId={task.id} timezone={timezone} />
           </div>
         )}
       </SheetContent>

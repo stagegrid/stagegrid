@@ -126,11 +126,20 @@ test('a stage follows its tasks: accept to finish, reopen with a reason to rewor
     `#!${process.execPath}
 const { execSync } = require('node:child_process')
 const out = (e) => process.stdout.write(JSON.stringify(e) + '\\n')
+const args = process.argv.slice(2)
+const prompt = args[args.length - 1]
+if (prompt.includes('Slot booking') && !args.includes('--resume')) {
+  out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'needs_answers', summary: 'Two rules are unclear', commit: null, tests: null, questions: [
+    { prompt: 'Reject the second booking?', options: ['Yes', 'No'] },
+    { prompt: 'Slot length in minutes?', options: [] },
+  ] } })
+  process.exit(0)
+}
 require('node:fs').writeFileSync('login.txt', 'email login\\n')
 execSync('git add -A && git commit -q -m "feat: email login"')
 const commit = execSync('git rev-parse HEAD').toString().trim()
 out({ type: 'assistant', message: { content: [{ type: 'text', text: 'Implemented email login' }] } })
-out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'submitted', summary: 'Email login done', commit, tests: '3 passed' } })
+out({ type: 'result', subtype: 'success', is_error: false, structured_output: { status: 'submitted', summary: 'Work done', commit, tests: '3 passed', questions: [] } })
 `,
   )
   await chmod(fake, 0o755)
@@ -162,6 +171,43 @@ out({ type: 'result', subtype: 'success', is_error: false, structured_output: { 
     await page.keyboard.press('Escape')
     await expect(page.getByRole('region', { name: 'Done' }).getByText('Email login')).toBeVisible()
     expect(git('branch', '--list', 'stagegrid/*').toString()).toMatch(/stagegrid\/task-/)
+
+    // A second task whose employee has to ask before it can start: questions, answers, continuation.
+    await page.goto('/p/clinic-os/tasks')
+    await page.getByRole('button', { name: 'New task' }).click()
+    await page.getByLabel('Item').click()
+    await page.getByRole('option', { name: 'Login' }).click()
+    await page.getByLabel('Stage').click()
+    await page.getByRole('option', { name: 'Implement' }).click()
+    await page.getByLabel('Assign to').click()
+    await page.getByRole('option', { name: /Mali/ }).click()
+    await page.getByLabel('Title').fill('Slot booking')
+    await page.getByRole('button', { name: /create task/i }).click()
+    await page.getByRole('button', { name: /^Slot booking/ }).click()
+    await page.getByRole('button', { name: 'Pin context' }).click()
+    await page.getByLabel('Decisions').fill('Bookings are in 15 to 60 minute slots')
+    await page.getByRole('dialog').getByRole('button', { name: 'Pin context' }).click()
+    await expect(page.getByText('Revision 1')).toBeVisible()
+    await page.getByRole('button', { name: 'Mark ready' }).click()
+    await page.getByRole('button', { name: 'Start run' }).click()
+
+    await expect(page.getByText('Questions · 2 to answer')).toBeVisible({ timeout: 25_000 })
+    await page.keyboard.press('Escape')
+    const attention = page.getByRole('region', { name: 'Needs your attention' })
+    await expect(attention.getByText('Slot booking')).toBeVisible()
+    await attention.getByRole('button', { name: /Slot booking/ }).click()
+
+    await page.getByRole('button', { name: 'Yes', exact: true }).click()
+    await page.getByRole('button', { name: 'Answer', exact: true }).first().click()
+    await expect(page.getByText('Questions · 1 to answer')).toBeVisible()
+    await page.getByLabel('Answer to: Slot length in minutes?').fill('30')
+    await page.getByRole('button', { name: 'Answer', exact: true }).click()
+    await expect(page.getByText('Finished', { exact: true })).toBeVisible({ timeout: 25_000 })
+    await expect(
+      page.getByRole('region', { name: 'Conversation' }).getByText('Reject the second booking?'),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Accept', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
   } finally {
     worker.kill('SIGINT')
   }

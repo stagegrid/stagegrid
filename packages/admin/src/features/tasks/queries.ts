@@ -36,6 +36,8 @@ export function useInvalidateTasks(slug: string) {
       [
         ['tasks', slug],
         ['task', slug],
+        ['thread', slug],
+        ['attention', slug],
         ['board', slug],
         ['cell', slug],
         ['timeline', slug],
