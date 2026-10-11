@@ -1,5 +1,7 @@
 import type { ClaimedRunDto, QueuedRunDto, RunnerDto, UsageWindow } from '@stagegrid/shared'
 
+import type { SubmissionPayload } from './delivery'
+
 export class RunnerApiError extends Error {
   constructor(
     readonly status: number,
@@ -45,6 +47,7 @@ export interface CompleteBody {
   outcome: 'succeeded' | 'failed' | 'interrupted'
   summary?: string
   failureReason?: string
+  submission?: SubmissionPayload
 }
 
 export interface CapacityBody {

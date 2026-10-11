@@ -1,4 +1,4 @@
-import { MessageCircleQuestionMarkIcon, TriangleAlertIcon } from 'lucide-react'
+import { ClipboardCheckIcon, MessageCircleQuestionMarkIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { relativeTime } from '@/lib/format'
 
@@ -30,6 +30,8 @@ export function AttentionList({
               <span className="flex items-center gap-2">
                 {a.kind === 'question' ? (
                   <MessageCircleQuestionMarkIcon className="size-4 shrink-0" />
+                ) : a.kind === 'acceptance' ? (
+                  <ClipboardCheckIcon className="size-4 shrink-0" />
                 ) : (
                   <TriangleAlertIcon className="text-destructive size-4 shrink-0" />
                 )}

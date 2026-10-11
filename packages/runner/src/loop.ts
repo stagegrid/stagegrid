@@ -11,6 +11,7 @@ import {
   RunnerApiError,
 } from './api'
 import type { RunnerConfig } from './config'
+import { buildDelivery } from './delivery'
 import { systemPrompt, taskPrompt } from './prompt'
 import { ensureWorktree } from './workspace'
 
@@ -266,19 +267,24 @@ export class RunnerLoop {
     }
 
     switch (outcome.kind) {
-      case 'finished':
+      case 'finished': {
         if (outcome.blocked)
           return complete({ outcome: 'failed', failureReason: `Blocked: ${outcome.summary}` })
+        // The agent's "done" is only a claim: look at the worktree and gather evidence ourselves.
+        const delivery = await buildDelivery({
+          claim,
+          worktree,
+          repo,
+          config,
+          agent: { summary: outcome.summary, commit: outcome.commit, tests: outcome.tests },
+        })
+        if (!delivery.ok) return complete({ outcome: 'failed', failureReason: delivery.reason })
         return complete({
           outcome: 'succeeded',
-          summary: [
-            outcome.summary,
-            outcome.commit ? `Commit: ${outcome.commit}` : null,
-            outcome.tests ? `Tests: ${outcome.tests}` : null,
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          summary: outcome.summary,
+          submission: delivery.submission,
         })
+      }
       case 'needs_answers':
         // The run stops here: Stagegrid shows the questions and queues the run again once answered.
         return withRetry(() =>

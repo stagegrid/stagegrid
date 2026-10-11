@@ -35,6 +35,7 @@ import {
 import { useTestDatabase } from '../helpers/db'
 import { addMember, createUser, FIXED_NOW, makeCtx, seedProject } from '../helpers/factories'
 import { captureEvents } from '../helpers/listen'
+import { SUBMISSION } from '../helpers/work'
 
 const getDb = useTestDatabase()
 
@@ -466,16 +467,23 @@ describe('while running', () => {
       fencingToken: token,
       idempotencyKey: 'done-1',
       outcome: 'succeeded',
+      submission: SUBMISSION,
       summary: 'Implemented and tested.',
     })
     expect(done).toMatchObject({ state: 'succeeded', summary: 'Implemented and tested.' })
     const after = await getTask(s.ctx, s.project.id, task.id)
     expect(after.state).toBe('ready_for_acceptance')
-    expect(after.actions).toContain('accept')
+    // An employee's delivery is accepted against its exact commit, not with a plain button.
+    expect(after.actions).not.toContain('accept')
+    expect(after.submission).toMatchObject({
+      state: 'submitted',
+      headCommit: SUBMISSION.artifacts[0]!.headCommit,
+    })
     const replay = await completeRun(s.system, row, run.id, {
       fencingToken: token,
       idempotencyKey: 'done-1',
       outcome: 'succeeded',
+      submission: SUBMISSION,
     })
     expect(replay.id).toBe(done.id)
     await expect(
@@ -532,6 +540,7 @@ describe('losing the runner', () => {
         fencingToken: claim.run.fencingToken,
         idempotencyKey: 'late',
         outcome: 'succeeded',
+        submission: SUBMISSION,
         summary: 'Done!',
       }),
     ).rejects.toMatchObject({ details: { code: 'stale_fencing' } })
@@ -603,6 +612,7 @@ describe('cancelling', () => {
         fencingToken: t,
         idempotencyKey: 'z',
         outcome: 'succeeded',
+        submission: SUBMISSION,
       }),
     ).rejects.toMatchObject({ details: { code: 'stale_fencing' } })
     expect((await getTask(s.ctx, s.project.id, task.id)).state).toBe('ready')
@@ -618,6 +628,7 @@ describe('cancelling', () => {
       fencingToken: claim.run.fencingToken,
       idempotencyKey: 'd',
       outcome: 'succeeded',
+      submission: SUBMISSION,
     })
     const submitted = await getTask(s.ctx, s.project.id, task.id)
     const changes = await transitionTask(s.ctx, s.project.id, task.id, {

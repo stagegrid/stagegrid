@@ -70,6 +70,10 @@ export const LIMITS = {
   questionOption: 300,
   questionOptions: 10,
   answer: 5000,
+  artifactsPerSubmission: 10,
+  verificationsPerSubmission: 20,
+  verificationCommand: 500,
+  verificationOutput: 4000,
 } as const
 
 export const LINK_KINDS = ['doc', 'design', 'issue', 'other'] as const
@@ -174,3 +178,28 @@ export const QUESTION_BATCH_STATES = ['open', 'answered', 'cancelled'] as const
 export type QuestionBatchState = (typeof QUESTION_BATCH_STATES)[number]
 export const QUESTION_STATES = ['open', 'answered', 'cancelled'] as const
 export type QuestionState = (typeof QUESTION_STATES)[number]
+
+/** How far a project lets employees' work leave the runner's machine. */
+export const DELIVERY_MODES = ['local', 'branch', 'pull_request'] as const
+export type DeliveryMode = (typeof DELIVERY_MODES)[number]
+export interface DeliverySettings {
+  mode: DeliveryMode
+  /** "owner/name" of the repository pull requests must target, when set. */
+  repo: string | null
+}
+export const DEFAULT_DELIVERY: DeliverySettings = { mode: 'local', repo: null }
+
+export const ARTIFACT_KINDS = ['pull_request', 'branch', 'commit'] as const
+export type ArtifactKind = (typeof ARTIFACT_KINDS)[number]
+
+/** Who ran a check: the agent says so (weakest), the runner ran it itself, or CI did. */
+export const EVIDENCE_SOURCES = ['agent_reported', 'runner_reported', 'ci_checked'] as const
+export type EvidenceSource = (typeof EVIDENCE_SOURCES)[number]
+
+export const SUBMISSION_STATES = [
+  'submitted',
+  'accepted',
+  'superseded',
+  'changes_requested',
+] as const
+export type SubmissionState = (typeof SUBMISSION_STATES)[number]

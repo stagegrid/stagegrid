@@ -110,7 +110,23 @@ describe('runs and runners API', () => {
       (await runner(`/runs/${run.id}/heartbeat`, { body: { fencingToken: t + 5 } })).status,
     ).toBe(409)
     const done = await runner(`/runs/${run.id}/complete`, {
-      body: { fencingToken: t, idempotencyKey: 'd1', outcome: 'succeeded', summary: 'Done' },
+      body: {
+        fencingToken: t,
+        idempotencyKey: 'd1',
+        outcome: 'succeeded',
+        summary: 'Done',
+        submission: {
+          artifacts: [{ kind: 'commit', headCommit: 'a1b2c3d4e5f6' }],
+          verification: [
+            {
+              command: 'pnpm test',
+              exitCode: 0,
+              commit: 'a1b2c3d4e5f6',
+              source: 'runner_reported',
+            },
+          ],
+        },
+      },
     })
     expect(await done.json()).toMatchObject({ state: 'succeeded' })
 

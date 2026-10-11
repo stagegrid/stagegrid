@@ -1,15 +1,19 @@
 import type {
+  ArtifactKind,
   Ceilings,
   CellProgressMode,
   CellStatus,
+  DeliverySettings,
   EmployeeProvider,
   EmployeeRole,
+  EvidenceSource,
   LinkKind,
   ProjectRole,
   ProviderCapacity,
   QuestionBatchState,
   QuestionState,
   RunState,
+  SubmissionState,
   TaskAction,
   TaskState,
   UserStatus,
@@ -50,6 +54,7 @@ export interface ProjectDto {
   /** Nearest active release by target date (phase 5). */
   nextRelease: { id: string; name: string; targetDate: string; percent: number } | null
   defaultReleasePhases: { name: string; freeze?: boolean }[]
+  delivery: DeliverySettings
 }
 
 export interface StageDto {
@@ -475,6 +480,8 @@ export interface ClaimedRunDto {
     title: string
     markdown: string
   }[]
+  /** How far the work may leave this machine: nothing, a pushed branch, or a pull request. */
+  delivery: DeliverySettings
   /** Answers people gave to the employee's earlier questions, oldest first. */
   answers: { question: string; answer: string }[]
 }
@@ -506,7 +513,7 @@ export interface QuestionBatchDto {
 
 /** Something a person needs to act on: answer, look at a failed run, accept work. */
 export interface AttentionItemDto {
-  kind: 'question' | 'run_problem'
+  kind: 'question' | 'run_problem' | 'acceptance'
   taskId: string
   taskTitle: string
   itemPath: string
@@ -534,6 +541,41 @@ export interface QueuedRunDto {
   provider: string
 }
 
+export interface ArtifactDto {
+  artifactId: string
+  kind: ArtifactKind
+  url: string | null
+  repo: string | null
+  branch: string | null
+  headCommit: string
+}
+
+export interface CheckDto {
+  command: string
+  exitCode: number
+  commit: string
+  source: EvidenceSource
+  output: string | null
+}
+
+/** What a run delivered and how well it is backed up. A person's acceptance is bound to this commit. */
+export interface SubmissionDto {
+  id: string
+  runId: string
+  state: SubmissionState
+  headCommit: string
+  summary: string
+  contextRevisionId: string
+  artifacts: ArtifactDto[]
+  checks: CheckDto[]
+  /** Checks that ran against the delivered commit, and how many of them passed. */
+  evidence: { onCommit: number; passing: number; failing: number; strongest: EvidenceSource | null }
+  createdAt: string
+  decidedAt: string | null
+  decidedBy: string | null
+  decisionReason: string | null
+}
+
 export interface TaskDto {
   id: string
   cellId: string
@@ -549,6 +591,8 @@ export interface TaskDto {
   context: TaskContextSummaryDto | null
   /** The latest run, if any. */
   run: TaskRunSummaryDto | null
+  /** The latest delivery by a run, if any. */
+  submission: SubmissionDto | null
   /** What a person can do next from this state. */
   actions: TaskAction[]
   createdAt: string

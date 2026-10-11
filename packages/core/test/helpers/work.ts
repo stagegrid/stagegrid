@@ -88,3 +88,19 @@ export async function runningRun(s: WorkWorld) {
   const claim = await claimRun(s.system, r.row, run.id, { idempotencyKey: 'c1' })
   return { ...r, task, run, contextRevisionId, token: claim.run.fencingToken }
 }
+
+export const COMMIT = 'a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0'
+
+/** A delivery a runner would report: one local commit with a passing check run on it. */
+export const SUBMISSION = {
+  artifacts: [{ kind: 'commit' as const, url: null, repo: null, branch: null, headCommit: COMMIT }],
+  verification: [
+    {
+      command: 'pnpm test',
+      exitCode: 0,
+      commit: COMMIT,
+      source: 'runner_reported' as const,
+      output: null,
+    },
+  ],
+}

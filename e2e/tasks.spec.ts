@@ -117,7 +117,7 @@ test('a stage follows its tasks: accept to finish, reopen with a reason to rewor
   await writeFile(join(repo, 'README.md'), 'clinic\n')
   git('add', '.')
   git('commit', '-m', 'init')
-  runner('repo', 'clinic-os', repo)
+  runner('repo', 'clinic-os', repo, '--test', 'test -f login.txt')
 
   // A stand-in for `claude`: edits and commits in the worktree, then answers in Claude's format.
   const fake = join(dir, 'claude')
@@ -166,7 +166,12 @@ out({ type: 'result', subtype: 'success', is_error: false, structured_output: { 
     await page.getByRole('button', { name: 'Start run' }).click()
     // The run finishes on the runner; the sheet updates by itself.
     await expect(page.getByText('Finished', { exact: true })).toBeVisible({ timeout: 25_000 })
-    await page.getByRole('button', { name: 'Accept', exact: true }).click()
+    // The delivery shows the commit and who ran which check; accepting is bound to that commit.
+    await expect(
+      page.getByRole('region', { name: 'Delivery' }).getByText('Run by the runner'),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Accept this version' }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
     await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('region', { name: 'Done' }).getByText('Email login')).toBeVisible()
@@ -206,7 +211,8 @@ out({ type: 'result', subtype: 'success', is_error: false, structured_output: { 
     await expect(
       page.getByRole('region', { name: 'Conversation' }).getByText('Reject the second booking?'),
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Accept', exact: true }).click()
+    await page.getByRole('button', { name: 'Accept this version' }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
     await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible()
   } finally {
     worker.kill('SIGINT')

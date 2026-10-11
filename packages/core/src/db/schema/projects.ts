@@ -1,3 +1,4 @@
+import { DEFAULT_DELIVERY, type DeliverySettings } from '@stagegrid/shared'
 import { sql } from 'drizzle-orm'
 import {
   index,
@@ -27,6 +28,8 @@ export const projects = pgTable('projects', {
     .$type<{ name: string; freeze?: boolean }[]>()
     .notNull()
     .default([{ name: 'Dev' }, { name: 'SIT', freeze: true }, { name: 'UAT' }]),
+  /** How far employees' work may leave the runner (local commit, pushed branch, pull request). */
+  delivery: jsonb('delivery').$type<DeliverySettings>().notNull().default(DEFAULT_DELIVERY),
   archivedAt: ts('archived_at'),
   createdBy: uuid('created_by')
     .notNull()

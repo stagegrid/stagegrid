@@ -4,6 +4,7 @@ import type {
   CreateContextInput,
   CreateTaskInput,
   EmployeeRefDto,
+  SubmissionDto,
   TaskActionInput,
   TaskContextDto,
   TaskContextSummaryDto,
@@ -28,6 +29,7 @@ import {
   stages,
   taskEvents,
   tasks,
+  taskSubmissions,
   users,
 } from '../db/schema'
 import { aggregateCellStatus, availableActions, resolveTransition } from '../domain/tasks'
@@ -42,6 +44,7 @@ import { requireActiveEmployee } from './employees.service'
 import { cellStale } from './project-stats'
 import { makeResolver } from './refs'
 import { loadItems, loadStages } from './structure'
+import { latestSubmissions } from './submissions.service'
 import { loadTaskInProject, lockTask, type TaskRow } from './task-access'
 import {
   createContextRevision,
@@ -58,12 +61,13 @@ interface TaskLookups {
   employees: Map<string, EmployeeRefDto>
   contexts: Map<string, TaskContextSummaryDto>
   runs: Map<string, TaskRunSummaryDto>
+  submissions: Map<string, SubmissionDto>
 }
 
 async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
   const userIds = [...new Set(rows.flatMap((t) => (t.ownerUserId ? [t.ownerUserId] : [])))]
   const employeeIds = [...new Set(rows.flatMap((t) => (t.employeeId ? [t.employeeId] : [])))]
-  const [owners, staff, contexts, runRows] = await Promise.all([
+  const [owners, staff, contexts, runRows, submissions] = await Promise.all([
     userIds.length
       ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, userIds))
       : [],
@@ -95,6 +99,10 @@ async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
           )
           .orderBy(desc(runs.attempt))
       : [],
+    latestSubmissions(
+      db,
+      rows.map((t) => t.id),
+    ),
   ])
   const latestRuns = new Map<string, TaskRunSummaryDto>()
   for (const { run, runnerName } of runRows) {
@@ -114,6 +122,7 @@ async function loadLookups(db: DbOrTx, rows: TaskRow[]): Promise<TaskLookups> {
     employees: new Map(staff.map((e) => [e.id, e])),
     contexts,
     runs: latestRuns,
+    submissions,
   }
 }
 
@@ -133,9 +142,10 @@ function toTaskDto(t: TaskRow, lookups: TaskLookups): TaskDto {
     employee: t.employeeId ? (lookups.employees.get(t.employeeId) ?? null) : null,
     context: lookups.contexts.get(t.id) ?? null,
     run: lookups.runs.get(t.id) ?? null,
+    submission: lookups.submissions.get(t.id) ?? null,
     // An employee's task is started and submitted by its runs, not by hand.
     actions: availableActions(t.state).filter(
-      (a) => !(t.employeeId && (a === 'start' || a === 'submit')),
+      (a) => !(t.employeeId && (a === 'start' || a === 'submit' || a === 'accept')),
     ),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
@@ -572,6 +582,11 @@ export async function transitionTask(
           : "An AI employee submits its own work. Cancel the run if it can't finish.",
         { code: 'employee_task' },
       )
+    if (current.employeeId && input.action === 'accept')
+      throw conflict(
+        "Accept an AI employee's work against its delivery: review the commit and accept that exact version.",
+        { code: 'employee_task' },
+      )
     if (t.reasonRequired && !input.reason)
       throw invalid('Say why: a reason is required for this action')
     if (input.action === 'mark_ready') {
@@ -607,6 +622,17 @@ export async function transitionTask(
       action: input.action,
       reason: input.reason,
     })
+    if (input.action === 'request_changes')
+      // The delivery that was reviewed is sent back; a new run will deliver a new submission.
+      await tx
+        .update(taskSubmissions)
+        .set({
+          state: 'changes_requested',
+          decidedBy: ctx.actor?.userId ?? null,
+          decidedAt: ctx.now(),
+          decisionReason: input.reason ?? null,
+        })
+        .where(and(eq(taskSubmissions.taskId, taskId), eq(taskSubmissions.state, 'submitted')))
     await audit(tx, txCtx, {
       projectId: project.id,
       action: `task.${input.action}`,

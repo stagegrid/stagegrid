@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SubmissionPanel } from '@/features/delivery/SubmissionPanel'
 import { EmployeeBadge } from '@/features/employees/EmployeeBadge'
 import { QuestionPanel } from '@/features/questions/QuestionPanel'
 import { Thread } from '@/features/questions/Thread'
@@ -60,6 +61,7 @@ export function TaskSheet({
             {task.employee && (
               <RunPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
             )}
+            <SubmissionPanel slug={slug} task={task} timezone={timezone} canEdit={canEdit} />
             <TaskActions slug={slug} task={task} canEdit={canEdit} />
             {task.scope && (
               <section className="grid gap-1">

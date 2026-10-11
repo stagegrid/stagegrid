@@ -16,6 +16,11 @@ const repoConfig = z.object({
   /** An existing clone of the project's repository on this machine. */
   path: z.string().min(1),
   baseBranch: z.string().min(1).default('main'),
+  /** Run in the worktree after the agent finishes; its exit code becomes runner-reported evidence. */
+  testCommand: z.string().min(1).optional(),
+  testTimeoutSeconds: z.number().int().min(1).default(600),
+  /** Git remote that pushes go to, when the project allows pushing. */
+  remote: z.string().min(1).default('origin'),
 })
 
 export const configSchema = z.object({
@@ -29,6 +34,8 @@ export const configSchema = z.object({
     .default({}),
   /** Where Codex keeps its login and sessions; set a separate one to keep it from reading yours. */
   codexHome: z.string().optional(),
+  /** The GitHub CLI used to open pull requests, when the project allows them. */
+  ghBin: z.string().default('gh'),
   pollWaitSeconds: z.number().int().min(0).max(25).default(20),
   heartbeatSeconds: z.number().int().min(5).default(30),
 })

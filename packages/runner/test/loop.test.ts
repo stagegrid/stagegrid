@@ -108,6 +108,7 @@ function claimFor(id: string, extra: Partial<ClaimedRunDto['run']> = {}): Claime
         decisions: ['Email and password only'],
       },
     },
+    delivery: { mode: 'local', repo: null },
     answers: [],
     documents: [
       {
@@ -140,14 +141,17 @@ class FakeAdapter implements AgentAdapter {
   }
 }
 
-async function world(adapter: FakeAdapter, opts: { repo?: boolean; max?: number } = {}) {
+async function world(
+  adapter: FakeAdapter,
+  opts: { repo?: boolean; max?: number; testCommand?: string } = {},
+) {
   const api = new FakeApi()
   const repo = opts.repo === false ? undefined : await repoDir()
   const config = configSchema.parse({
     url: 'https://sg.example.com',
     credential: 'sg_runner_x',
     worktreesDir: await mkdtemp(join(tmpdir(), 'sg-loop-wt-')),
-    repos: repo ? { pilot: { path: repo, baseBranch: 'main' } } : {},
+    repos: repo ? { pilot: { path: repo, baseBranch: 'main', testCommand: opts.testCommand } } : {},
     heartbeatSeconds: 5,
   })
   const logs: string[] = []
@@ -172,6 +176,18 @@ async function world(adapter: FakeAdapter, opts: { repo?: boolean; max?: number 
   return { api, loop, logs, enqueue }
 }
 
+/** What a real agent does before it reports success: change something and commit it in its worktree. */
+function commitIn(cwd: string): string {
+  execFileSync('git', ['config', 'user.email', 'ai@example.com'], { cwd })
+  execFileSync('git', ['config', 'user.name', 'AI'], { cwd })
+  execFileSync(
+    'sh',
+    ['-c', 'echo work >> work.txt && git add -A && git commit -q -m "feat: work"'],
+    { cwd },
+  )
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd }).toString().trim()
+}
+
 const finished = (extra = {}): AdapterOutcome => ({
   kind: 'finished',
   summary: 'Implemented',
@@ -184,11 +200,13 @@ const finished = (extra = {}): AdapterOutcome => ({
 
 describe('RunnerLoop', () => {
   it('claims a run, works in an isolated worktree with the pinned context, and reports success', async () => {
-    const adapter = new FakeAdapter(async (_i, _s, emit) => {
+    let head = ''
+    const adapter = new FakeAdapter(async (i, _s, emit) => {
       emit({ type: 'session', sessionRef: 'sess-1' } as never)
       emit({ type: 'progress', message: 'Writing tests' } as never)
       await new Promise((r) => setTimeout(r, 60))
-      return finished()
+      head = commitIn(i.cwd)
+      return finished({ commit: head })
     })
     const { api, loop, enqueue } = await world(adapter)
     enqueue('run-1')
@@ -216,20 +234,79 @@ describe('RunnerLoop', () => {
         fencingToken: 4,
         idempotencyKey: 'run-1:4:complete',
         outcome: 'succeeded',
-        summary: 'Implemented\n\nCommit: abc123\n\nTests: 9 passed',
+        summary: 'Implemented',
+        submission: {
+          artifacts: [
+            expect.objectContaining({ kind: 'commit', headCommit: head, url: null, repo: null }),
+          ],
+          verification: [
+            {
+              command: 'The agent reported: 9 passed',
+              exitCode: 0,
+              commit: head,
+              source: 'agent_reported',
+              output: null,
+            },
+          ],
+        },
       },
     ])
     expect(loop.activeRuns).toBe(0)
   })
 
   it('resumes the same session for a continuation', async () => {
-    const adapter = new FakeAdapter(async () => finished())
+    const adapter = new FakeAdapter(async (i) => finished({ commit: commitIn(i.cwd) }))
     const { loop, enqueue } = await world(adapter)
     enqueue('run-2', { sessionRef: 'sess-9' })
     await loop.tick()
     await loop.idle()
     expect(adapter.inputs[0]!.sessionRef).toBe('sess-9')
     expect(adapter.inputs[0]!.prompt).toContain('continuing an earlier session')
+  })
+
+  it('does not take the agent at its word: no commit means no success', async () => {
+    const adapter = new FakeAdapter(async () => finished({ commit: 'abc1234' }))
+    const { api, loop, enqueue } = await world(adapter)
+    enqueue('run-nc')
+    await loop.tick()
+    await loop.idle()
+    expect(api.completions[0]).toMatchObject({
+      outcome: 'failed',
+      failureReason: 'The agent reported success but made no commit.',
+    })
+    expect(api.completions[0]!.submission).toBeUndefined()
+  })
+
+  it('fails when the agent leaves tracked changes uncommitted', async () => {
+    const adapter = new FakeAdapter(async (i) => {
+      commitIn(i.cwd)
+      execFileSync('sh', ['-c', 'echo more >> work.txt'], { cwd: i.cwd })
+      return finished()
+    })
+    const { api, loop, enqueue } = await world(adapter)
+    enqueue('run-dirty')
+    await loop.tick()
+    await loop.idle()
+    expect(api.completions[0]).toMatchObject({ outcome: 'failed' })
+    expect(api.completions[0]!.failureReason).toMatch(/uncommitted changes/)
+  })
+
+  it("runs the project's test command itself and reports its exit code as runner evidence", async () => {
+    const adapter = new FakeAdapter(async (i) => finished({ commit: commitIn(i.cwd), tests: null }))
+    const w = await world(adapter, { testCommand: 'echo checking && exit 3' })
+    w.enqueue('run-t')
+    await w.loop.tick()
+    await w.loop.idle()
+    const [done] = w.api.completions
+    expect(done).toMatchObject({ outcome: 'succeeded' })
+    expect(done!.submission!.verification).toEqual([
+      expect.objectContaining({
+        command: 'echo checking && exit 3',
+        exitCode: 3,
+        source: 'runner_reported',
+        output: expect.stringContaining('checking'),
+      }),
+    ])
   })
 
   it('reports a blocked agent as a failure with its question, not as success', async () => {

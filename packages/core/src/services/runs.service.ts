@@ -22,8 +22,9 @@ import {
   tasks,
 } from '../db/schema'
 import { capacityBlock, ceilingsFor } from '../domain/capacity'
+import { validateSubmission } from '../domain/delivery'
 import { isClaimable, leaseDeadline } from '../domain/runs'
-import { conflict, notFound } from '../errors'
+import { conflict, invalid, notFound } from '../errors'
 import { newId } from '../lib/ids'
 import { notify } from '../realtime/notify'
 import { type ProjectRow, requireProjectRole } from './access'
@@ -32,6 +33,7 @@ import { type ServiceContext, withTx } from './context'
 import { revisionMarkdown } from './docs.service'
 import { answeredQuestions } from './questions.service'
 import { eligibleRunnerExists, type RunnerRow } from './runners.service'
+import { recordSubmission } from './submissions.service'
 import { loadTaskInProject, lockTask, type TaskRow } from './task-access'
 import { getContextOrThrow, readinessReasons } from './task-context.service'
 import { moveTaskState } from './tasks.service'
@@ -350,6 +352,7 @@ async function claimPayload(
       acceptanceCriteria: task.acceptanceCriteria,
     },
     context,
+    delivery: project.delivery,
     answers: await answeredQuestions(tx, task.id),
     documents: await Promise.all(
       context.manifest.documents.map(async (d) => ({
@@ -634,6 +637,17 @@ export async function completeRun(
     const run = await requireLease(tx, runner, runId, input.fencingToken)
     if (run.state !== 'running') throw staleFencing(run.fencingToken)
     const project = await projectOf(tx, run.projectId)
+    if (input.outcome === 'succeeded') {
+      // A run that says it succeeded must show what it delivered; otherwise it can't be accepted.
+      const problems = input.submission
+        ? validateSubmission(input.submission, project.delivery)
+        : ['No delivery was reported: send the commit and the checks run against it.']
+      if (problems.length)
+        throw invalid(`This delivery can't be accepted as completed work: ${problems.join(' ')}`, {
+          code: 'evidence_missing',
+          problems,
+        })
+    }
     const now = ctx.now()
     const [row] = await tx
       .update(runs)
@@ -652,6 +666,8 @@ export async function completeRun(
       })
       .where(eq(runs.id, runId))
       .returning()
+    if (input.outcome === 'succeeded' && input.submission)
+      await recordSubmission(tx, txCtx, project, task, run, input.submission, input.summary ?? '')
     if (input.outcome === 'succeeded' && task.state === 'in_progress')
       await moveTaskState(
         tx,

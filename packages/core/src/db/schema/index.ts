@@ -1,6 +1,7 @@
 export * from './audit'
 export * from './auth'
 export * from './cells'
+export * from './delivery'
 export * from './docs'
 export * from './employees'
 export * from './enums'

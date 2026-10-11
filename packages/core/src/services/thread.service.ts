@@ -17,6 +17,7 @@ import { requireProjectRole } from './access'
 import type { ServiceContext } from './context'
 import { makeResolver } from './refs'
 import { loadItems } from './structure'
+import { latestSubmissions } from './submissions.service'
 import { loadTaskInProject } from './task-access'
 
 const ACTION_TEXT: Record<string, string> = {
@@ -156,11 +157,16 @@ export async function getAttention(ctx: ServiceContext, ref: string): Promise<At
     .where(
       and(
         eq(tasks.projectId, project.id),
-        or(eq(tasks.state, 'waiting_for_answer'), eq(tasks.state, 'in_progress')),
+        or(
+          eq(tasks.state, 'waiting_for_answer'),
+          eq(tasks.state, 'in_progress'),
+          eq(tasks.state, 'ready_for_acceptance'),
+        ),
       ),
     )
   if (rows.length === 0) return []
   const ids = rows.map((r) => r.t.id)
+  const subs = await latestSubmissions(ctx.db, ids)
   const [latestRuns, openBatches, staff] = await Promise.all([
     ctx.db.select().from(runs).where(inArray(runs.taskId, ids)).orderBy(desc(runs.attempt)),
     ctx.db
@@ -199,6 +205,18 @@ export async function getAttention(ctx: ServiceContext, ref: string): Promise<At
       itemPath: resolver.index.pathOf(cell.itemId),
       stageName,
       employee: t.employeeId ? (employeeRef.get(t.employeeId) ?? null) : null,
+    }
+    if (t.state === 'ready_for_acceptance') {
+      const sub = subs.get(t.id)
+      out.push({
+        ...base,
+        kind: 'acceptance',
+        at: sub?.createdAt ?? t.updatedAt.toISOString(),
+        summary: sub
+          ? `Delivered commit ${sub.headCommit.slice(0, 7)}${sub.summary ? `: ${sub.summary.split('\n')[0]}` : ''}`
+          : 'Waiting for your decision.',
+      })
+      continue
     }
     const batch = openBatches.find((b) => b.taskId === t.id)
     if (batch) {

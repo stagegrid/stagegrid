@@ -1,4 +1,5 @@
 import {
+  acceptTaskInput,
   answerQuestionInput,
   askQuestionsInput,
   cancelRunInput,
@@ -17,6 +18,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import { AppError } from '../../errors'
+import * as acceptance from '../../services/acceptance.service'
 import * as questions from '../../services/questions.service'
 import * as runners from '../../services/runners.service'
 import * as runs from '../../services/runs.service'
@@ -66,6 +68,19 @@ export const runRoutes = new Hono<AppEnv>()
         await body(c, answerQuestionInput),
       ),
     ),
+  )
+  .post('/projects/:ref/tasks/:id/accept', async (c) =>
+    c.json(
+      await acceptance.acceptTask(
+        serviceCtx(c),
+        c.req.param('ref'),
+        c.req.param('id'),
+        await body(c, acceptTaskInput),
+      ),
+    ),
+  )
+  .get('/projects/:ref/tasks/:id/submissions', async (c) =>
+    c.json(await acceptance.listSubmissions(serviceCtx(c), c.req.param('ref'), c.req.param('id'))),
   )
   .get('/projects/:ref/tasks/:id/thread', async (c) =>
     c.json(await thread.getThread(serviceCtx(c), c.req.param('ref'), c.req.param('id'))),

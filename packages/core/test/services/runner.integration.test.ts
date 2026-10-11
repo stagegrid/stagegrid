@@ -124,6 +124,7 @@ async function setup() {
     worktreesDir: await mkdtemp(join(tmpdir(), 'sg-it-wt-')),
     pollWaitSeconds: 0,
   })
+  config.repos[project.slug]!.testCommand = 'test -f feature.txt'
   const loop = new RunnerLoop({
     api: new RunnerApi(url, credential),
     config,
@@ -168,8 +169,17 @@ describe('a real runner against a real server', () => {
       expect(task.state).toBe('ready_for_acceptance')
       expect(task.run).toMatchObject({ state: 'succeeded', runnerName: 'it-runner', attempt: 1 })
       const [saved] = await s.db.db.select().from(runs).where(eq(runs.id, s.run.id))
-      expect(saved!.summary).toContain('Added email login')
-      expect(saved!.summary).toContain('Tests: 3 passed')
+      expect(saved!.summary).toBe('Added email login')
+      // The runner looked at the worktree and ran the check itself; the agent's own claim is labelled.
+      expect(task.submission).toMatchObject({
+        state: 'submitted',
+        artifacts: [expect.objectContaining({ kind: 'commit' })],
+        evidence: { onCommit: 2, passing: 2, failing: 0, strongest: 'runner_reported' },
+      })
+      expect(task.submission!.checks.map((c) => c.source).sort()).toEqual([
+        'agent_reported',
+        'runner_reported',
+      ])
       expect(saved!.sessionRef).toMatch(/^[0-9a-f-]{36}$/)
       const events = await s.db.db.select().from(runEvents).where(eq(runEvents.runId, s.run.id))
       expect(events.map((e) => e.type)).toContain('session')

@@ -1,10 +1,13 @@
 import { z } from 'zod'
 
 import {
+  ARTIFACT_KINDS,
   CELL_PROGRESS_MODES,
   CELL_STATUSES,
+  DELIVERY_MODES,
   EMPLOYEE_PROVIDERS,
   EMPLOYEE_ROLES,
+  EVIDENCE_SOURCES,
   LIMITS,
   LINK_KINDS,
   PATH_SEPARATOR,
@@ -86,6 +89,15 @@ export const createProjectInput = z.object({
   timezone: timezoneSchema.optional(),
   copyStagesFrom: refSchema.optional(),
 })
+export const deliverySettingsInput = z.object({
+  mode: z.enum(DELIVERY_MODES),
+  repo: z
+    .string()
+    .trim()
+    .regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name')
+    .nullable(),
+})
+
 export const updateProjectInput = z.object({
   name: nameSchema(LIMITS.projectName).optional(),
   slug: slugSchema.optional(),
@@ -100,6 +112,7 @@ export const updateProjectInput = z.object({
       'At most one phase can be the freeze point',
     )
     .optional(),
+  delivery: deliverySettingsInput.optional(),
 })
 export const addMemberInput = z.object({ userId: z.uuid(), role: projectRoleSchema })
 export const updateMemberInput = z.object({ role: projectRoleSchema })
@@ -410,12 +423,46 @@ export const runEventInput = z.object({
     .refine((p) => JSON.stringify(p).length <= LIMITS.runEventPayload, 'Payload is too large'),
   fencingToken: z.number().int().min(1),
 })
+const commitSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9a-f]{7,64}$/i, 'Use a commit hash')
+export const artifactInput = z.object({
+  kind: z.enum(ARTIFACT_KINDS),
+  url: z.url().max(LIMITS.linkUrl).nullable().default(null),
+  repo: z.string().trim().max(200).nullable().default(null),
+  branch: z.string().trim().max(200).nullable().default(null),
+  headCommit: commitSchema,
+})
+export const verificationInput = z.object({
+  command: z.string().trim().min(1).max(LIMITS.verificationCommand),
+  exitCode: z.number().int(),
+  commit: commitSchema,
+  source: z.enum(EVIDENCE_SOURCES),
+  output: z.string().max(LIMITS.verificationOutput).nullable().default(null),
+})
+export const submissionInput = z.object({
+  artifacts: z.array(artifactInput).min(1).max(LIMITS.artifactsPerSubmission),
+  verification: z.array(verificationInput).max(LIMITS.verificationsPerSubmission).default([]),
+})
+export const acceptTaskInput = z.object({
+  expectedVersion: z.number().int().min(1),
+  submissionId: z.uuid(),
+  headCommit: commitSchema,
+  contextRevisionId: z.uuid(),
+  idempotencyKey: idempotencyKey,
+  /** Accept even though a check on this commit failed. */
+  acknowledgeFailing: z.boolean().default(false),
+})
+
 export const completeRunInput = z.object({
   fencingToken: z.number().int().min(1),
   idempotencyKey,
   outcome: z.enum(RUN_OUTCOMES),
   summary: z.string().trim().max(LIMITS.runSummary).optional(),
   failureReason: z.string().trim().max(LIMITS.runFailure).optional(),
+  /** What was delivered, required when the run succeeded. */
+  submission: submissionInput.optional(),
 })
 
 export type StartRunInput = z.infer<typeof startRunInput>
@@ -456,3 +503,6 @@ export const answerQuestionInput = z.object({
 
 export type AskQuestionsInput = z.infer<typeof askQuestionsInput>
 export type AnswerQuestionInput = z.infer<typeof answerQuestionInput>
+
+export type SubmissionInput = z.infer<typeof submissionInput>
+export type AcceptTaskInput = z.infer<typeof acceptTaskInput>

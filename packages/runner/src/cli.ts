@@ -17,13 +17,16 @@ Runs Stagegrid AI employees' work on this machine.
 
 Usage:
   stagegrid-runner enroll --url <stagegrid url> --token <enrollment token>
-  stagegrid-runner repo <project slug> <path to clone> [--base main]
+  stagegrid-runner repo <project slug> <path to clone> [--base main] [--test "pnpm test"]
   stagegrid-runner doctor
   stagegrid-runner start
 
 Options:
   --config <file>   Runner config (default ~/.stagegrid-runner/config.json)
   -h, --help        Show this help
+
+With --test, the runner runs that command in the worktree after the agent finishes and reports
+its exit code as evidence, instead of relying on what the agent says about its tests.
 
 Get an enrollment token from Stagegrid (admin, Runners). The token works once; the runner keeps
 its own credential in the config file, readable by you only.`
@@ -63,14 +66,23 @@ async function addRepo(
   slug: string,
   path: string,
   base: string,
+  testCommand?: string,
 ): Promise<void> {
   const config = await loadConfig(configPath)
   await git(['rev-parse', '--git-dir'], path).catch(() => {
     throw new Error(`${path} is not a git repository`)
   })
-  config.repos[slug] = { path, baseBranch: base }
+  config.repos[slug] = {
+    path,
+    baseBranch: base,
+    testTimeoutSeconds: 600,
+    remote: 'origin',
+    ...(testCommand ? { testCommand } : {}),
+  }
   await saveConfig(configPath, config)
-  out(`Work for project "${slug}" will use ${path} (base branch ${base}).`)
+  out(
+    `Work for project "${slug}" will use ${path} (base branch ${base})${testCommand ? `, checked with: ${testCommand}` : ''}.`,
+  )
 }
 
 async function doctor(configPath: string): Promise<boolean> {
@@ -141,6 +153,7 @@ async function main(): Promise<void> {
       url: { type: 'string' },
       token: { type: 'string' },
       base: { type: 'string' },
+      test: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   })
@@ -156,7 +169,7 @@ async function main(): Promise<void> {
       return enroll(configPath, values.url, values.token)
     case 'repo':
       if (rest.length !== 2) throw new Error('usage: stagegrid-runner repo <project slug> <path>')
-      return addRepo(configPath, rest[0]!, rest[1]!, values.base ?? 'main')
+      return addRepo(configPath, rest[0]!, rest[1]!, values.base ?? 'main', values.test)
     case 'doctor': {
       if (!(await doctor(configPath))) process.exitCode = 1
       return
