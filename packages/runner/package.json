@@ -1,0 +1,32 @@
+{
+  "name": "@stagegrid/runner",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runs Stagegrid AI employees' work on a machine you control: claims queued runs, drives Claude Code or Codex in an isolated git worktree, and reports back",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "stagegrid-runner": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup src/cli.ts --format esm --target node22 --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@stagegrid/shared": "workspace:*",
+    "@types/node": "^26.6.4",
+    "tsup": "^8.5.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

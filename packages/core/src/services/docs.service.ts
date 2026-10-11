@@ -828,3 +828,33 @@ export async function renderSigned(
   }
   return renderDocument(asCreator, d.projectId, id, format, v)
 }
+
+/**
+ * Markdown of one saved revision, for a runner that already holds a grant on the project. It does
+ * the same rendering as a person's download but checks no user, since the caller authorised the
+ * pinned revision when the run was queued.
+ */
+export async function revisionMarkdown(
+  ctx: ServiceContext,
+  project: ProjectRow,
+  documentId: string,
+  version: number,
+): Promise<string> {
+  const d = await findDocument(ctx.db, project.id, documentId)
+  const [revision] = await ctx.db
+    .select()
+    .from(documentRevisions)
+    .where(and(eq(documentRevisions.documentId, d.id), eq(documentRevisions.version, version)))
+  if (!revision) throw notFound(`Version ${version} not found`)
+  const snapshot = d.templateSnapshot as TemplateSchema
+  const level = (await findTemplate(ctx.db, d.templateId)).level
+  const resolved = resolveTemplate(snapshot, await resolveContext(ctx, project, d, level))
+  const model = buildDocModel(resolved, revision.draft as Draft, {
+    title: revision.title,
+    project: project.name,
+    version: revision.version,
+    date: zonedDate(revision.createdAt, project.timezone),
+    author: '',
+  })
+  return renderMarkdown(model)
+}

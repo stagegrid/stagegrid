@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@stagegrid/admin", "@stagegrid/shared", "stagegrid-dev-app"]
+  "ignore": ["@stagegrid/admin", "@stagegrid/runner", "@stagegrid/shared", "stagegrid-dev-app"]
 }

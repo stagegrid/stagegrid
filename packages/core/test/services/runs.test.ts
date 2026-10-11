@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { runEvents, runners, runs } from '../../src/db/schema'
 import { getBoard, getCellDetail } from '../../src/services/board.service'
+import { saveDocDraft } from '../../src/services/docs.service'
 import { createEmployee } from '../../src/services/employees.service'
 import {
   authenticateRunner,
@@ -296,6 +297,49 @@ describe('claiming', () => {
     expect(await runnerQueue(s.system, row)).toEqual([])
     const cell = await getCellDetail(s.ctx, s.project.id, s.cellId)
     expect(cell.status).toBe('doing')
+  })
+
+  it('hands the runner the pinned document revisions as Markdown, not the latest edits', async () => {
+    const s = await setup()
+    const { row } = await enroll(s)
+    const doc = await saveDocDraft(s.ctx, s.project.id, {
+      template: 'srs',
+      item: 'Login',
+      stage: 'Document',
+      draft: { sections: { '1.1': 'Sign in with email and password' } },
+    })
+    const t = await createTask(s.ctx, s.project.id, {
+      cellId: s.cellId,
+      title: 'Doc task',
+      scope: '',
+      acceptanceCriteria: [],
+      required: true,
+      ownerUserId: null,
+      employeeId: s.mali.id,
+    })
+    const pinned = await pinContext(s.ctx, s.project.id, t.id, {
+      documentIds: [doc.documentId],
+      sources: [],
+      decisions: [],
+    })
+    await saveDocDraft(s.ctx, s.project.id, {
+      template: 'srs',
+      documentId: doc.documentId,
+      draft: { sections: { '1.1': 'Totally different text' } },
+    })
+    const ready = await transitionTask(s.ctx, s.project.id, t.id, {
+      action: 'mark_ready',
+      expectedVersion: t.version,
+    })
+    const run = await startRun(s.ctx, s.project.id, t.id, {
+      expectedVersion: ready.version,
+      contextRevisionId: pinned.revisionId,
+      idempotencyKey: 'k',
+    })
+    const claim = await claimRun(s.system, row, run.id, { idempotencyKey: 'c' })
+    expect(claim.documents).toHaveLength(1)
+    expect(claim.documents[0]!.markdown).toContain('Sign in with email and password')
+    expect(claim.documents[0]!.markdown).not.toContain('Totally different text')
   })
 
   it('gives exactly one of two simultaneous claimers the run (AC-03)', async () => {

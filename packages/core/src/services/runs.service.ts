@@ -29,6 +29,7 @@ import { notify } from '../realtime/notify'
 import { type ProjectRow, requireProjectRole } from './access'
 import { audit } from './audit'
 import { type ServiceContext, withTx } from './context'
+import { revisionMarkdown } from './docs.service'
 import { eligibleRunnerExists, type RunnerRow } from './runners.service'
 import { loadTaskInProject, type TaskRow } from './task-access'
 import { getContextOrThrow, readinessReasons } from './task-context.service'
@@ -334,8 +335,14 @@ export async function runnerQueue(ctx: ServiceContext, runner: RunnerRow): Promi
     }))
 }
 
-async function claimPayload(tx: DbOrTx, run: RunRow, task: TaskRow): Promise<ClaimedRunDto> {
+async function claimPayload(
+  ctx: ServiceContext,
+  tx: DbOrTx,
+  run: RunRow,
+  task: TaskRow,
+): Promise<ClaimedRunDto> {
   const project = await projectOf(tx, run.projectId)
+  const context = await getContextOrThrow(tx, task.id, run.contextRevisionId)
   const [employee] = await tx.select().from(employees).where(eq(employees.id, run.employeeId))
   return {
     run: {
@@ -354,7 +361,13 @@ async function claimPayload(tx: DbOrTx, run: RunRow, task: TaskRow): Promise<Cla
       scope: task.scope,
       acceptanceCriteria: task.acceptanceCriteria,
     },
-    context: await getContextOrThrow(tx, task.id, run.contextRevisionId),
+    context,
+    documents: await Promise.all(
+      context.manifest.documents.map(async (d) => ({
+        ...d,
+        markdown: await revisionMarkdown(ctx, project, d.documentId, d.version),
+      })),
+    ),
   }
 }
 
@@ -385,7 +398,7 @@ export async function claimRun(
       run.runnerId === runner.id &&
       run.claimKey === input.idempotencyKey
     )
-      return claimPayload(tx, run, task)
+      return claimPayload({ ...txCtx }, tx, run, task)
 
     const now = ctx.now()
     if (!isClaimable(run, now))
@@ -454,7 +467,7 @@ export async function claimRun(
         `Run ${run.attempt} started`,
       )
     await notify(tx, txCtx, project.id, 'run.updated', { runId, taskId: task.id, state: 'running' })
-    return claimPayload(tx, claimed!, task)
+    return claimPayload({ ...txCtx }, tx, claimed!, task)
   })
 }
 

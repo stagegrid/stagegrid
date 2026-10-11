@@ -465,6 +465,14 @@ export interface ClaimedRunDto {
   employee: { id: string; displayName: string; role: string }
   task: { id: string; title: string; scope: string; acceptanceCriteria: string[] }
   context: TaskContextDto
+  /** The pinned document revisions as Markdown, so the runner needn't fetch anything else. */
+  documents: {
+    documentId: string
+    revisionId: string
+    version: number
+    title: string
+    markdown: string
+  }[]
 }
 
 export interface QueuedRunDto {
