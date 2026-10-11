@@ -1,10 +1,12 @@
 import type {
+  Ceilings,
   CellProgressMode,
   CellStatus,
   EmployeeProvider,
   EmployeeRole,
   LinkKind,
   ProjectRole,
+  ProviderCapacity,
   RunState,
   TaskAction,
   TaskState,
@@ -429,6 +431,10 @@ export interface RunnerDto {
   providers: string[]
   version: string | null
   maxConcurrent: number
+  /** Per provider; missing providers use the defaults. */
+  ceilings: Record<string, Ceilings>
+  /** Latest usage the runner reported, per provider. */
+  capacity: Record<string, ProviderCapacity>
   online: boolean
   lastSeenAt: string | null
   projectIds: string[]

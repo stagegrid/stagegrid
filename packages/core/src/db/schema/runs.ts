@@ -1,3 +1,4 @@
+import type { Ceilings, ProviderCapacity } from '@stagegrid/shared'
 import { sql } from 'drizzle-orm'
 import {
   index,
@@ -32,6 +33,10 @@ export const runners = pgTable(
     providers: jsonb('providers').$type<string[]>().notNull().default([]),
     version: text('version'),
     maxConcurrent: integer('max_concurrent').notNull().default(1),
+    /** Per provider share of the usage windows employees may use; see DEFAULT_CEILINGS. */
+    ceilings: jsonb('ceilings').$type<Record<string, Ceilings>>().notNull().default({}),
+    /** Usage the runner last reported per provider, from the provider's own telemetry. */
+    capacity: jsonb('capacity').$type<Record<string, ProviderCapacity>>().notNull().default({}),
     lastSeenAt: ts('last_seen_at'),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: ts('created_at').notNull().defaultNow(),
@@ -106,6 +111,7 @@ export const runs = pgTable(
     /** For waiting_for_capacity: when the provider's limit resets and the run can continue. */
     resumeAt: ts('resume_at'),
     lastSequence: integer('last_sequence').notNull().default(0),
+    capacityResumes: integer('capacity_resumes').notNull().default(0),
     summary: text('summary'),
     failureReason: text('failure_reason'),
     completionKey: text('completion_key'),

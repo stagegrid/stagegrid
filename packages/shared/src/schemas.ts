@@ -359,6 +359,14 @@ export type CreateContextInput = z.infer<typeof createContextInput>
 // ---- runs and runners
 const idempotencyKey = z.string().trim().min(1).max(LIMITS.idempotencyKey)
 
+const percentSchema = z.number().min(0).max(100)
+const usageWindowSchema = z
+  .object({ percent: percentSchema, resetsAt: z.iso.datetime({ offset: true }).nullable() })
+  .nullable()
+export const ceilingsSchema = z.object({
+  fiveHour: z.number().int().min(1).max(100),
+  weekly: z.number().int().min(1).max(100),
+})
 export const startRunInput = z.object({
   expectedVersion: z.number().int().min(1),
   contextRevisionId: z.uuid(),
@@ -379,6 +387,12 @@ export const updateRunnerInput = z.object({
   name: nameSchema(LIMITS.runnerName).optional(),
   projectIds: z.array(z.uuid()).min(1).max(LIMITS.runnerProjects).optional(),
   maxConcurrent: z.number().int().min(1).max(20).optional(),
+  ceilings: z.record(z.string(), ceilingsSchema).optional(),
+})
+export const reportCapacityInput = z.object({
+  provider: z.string().min(1).max(50),
+  fiveHour: usageWindowSchema,
+  weekly: usageWindowSchema,
 })
 export const runnerSelfInput = z.object({
   providers: z.array(z.string().min(1).max(50)).max(10),
@@ -409,6 +423,7 @@ export type CancelRunInput = z.infer<typeof cancelRunInput>
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentInput>
 export type EnrollRunnerInput = z.infer<typeof enrollRunnerInput>
 export type UpdateRunnerInput = z.infer<typeof updateRunnerInput>
+export type ReportCapacityInput = z.infer<typeof reportCapacityInput>
 export type RunnerSelfInput = z.infer<typeof runnerSelfInput>
 export type ClaimRunInput = z.infer<typeof claimRunInput>
 export type RunEventInput = z.infer<typeof runEventInput>

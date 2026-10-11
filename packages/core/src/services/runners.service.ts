@@ -1,6 +1,7 @@
 import {
   type CreateEnrollmentInput,
   type EnrollRunnerInput,
+  type ReportCapacityInput,
   RUNNER_ENROLLMENT_MINUTES,
   RUNNER_ONLINE_SECONDS,
   type RunnerDto,
@@ -52,6 +53,8 @@ async function toDtos(db: DbOrTx, rows: RunnerRow[], now: Date): Promise<RunnerD
     providers: r.providers,
     version: r.version,
     maxConcurrent: r.maxConcurrent,
+    ceilings: r.ceilings,
+    capacity: r.capacity,
     online: isOnline(r, now),
     lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
     projectIds: grants.filter((g) => g.runnerId === r.id).map((g) => g.projectId),
@@ -190,6 +193,30 @@ export async function updateRunnerSelf(
     .where(eq(runners.id, runner.id))
 }
 
+/** Stores the usage the runner read from the provider's own telemetry (Claude events, Codex session files). */
+export async function reportCapacity(
+  ctx: ServiceContext,
+  runner: RunnerRow,
+  input: ReportCapacityInput,
+): Promise<void> {
+  await withTx(ctx, async (tx) => {
+    const [current] = await tx.select().from(runners).where(eq(runners.id, runner.id)).for('update')
+    await tx
+      .update(runners)
+      .set({
+        capacity: {
+          ...current!.capacity,
+          [input.provider]: {
+            fiveHour: input.fiveHour,
+            weekly: input.weekly,
+            reportedAt: ctx.now().toISOString(),
+          },
+        },
+      })
+      .where(eq(runners.id, runner.id))
+  })
+}
+
 export async function listRunners(ctx: ServiceContext): Promise<RunnerDto[]> {
   requireAdmin(ctx)
   const rows = await ctx.db.select().from(runners).orderBy(asc(runners.createdAt), asc(runners.id))
@@ -215,7 +242,11 @@ export async function updateRunner(
     }
     const [row] = await tx
       .update(runners)
-      .set({ name: input.name, maxConcurrent: input.maxConcurrent })
+      .set({
+        name: input.name,
+        maxConcurrent: input.maxConcurrent,
+        ceilings: input.ceilings ? { ...current.ceilings, ...input.ceilings } : undefined,
+      })
       .where(eq(runners.id, id))
       .returning()
     await audit(tx, txCtx, {

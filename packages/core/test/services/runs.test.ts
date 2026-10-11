@@ -9,6 +9,7 @@ import {
   createEnrollment,
   enrollRunner,
   listRunners,
+  reportCapacity,
   revokeRunner,
   updateRunner,
 } from '../../src/services/runners.service'
@@ -598,5 +599,188 @@ describe('cancelling', () => {
     const { run } = await queuedRun(s)
     const other = await seedProject(s.db, s.admin, { name: 'Other' })
     await expect(cancelRun(s.ctx, other.id, run.id)).rejects.toMatchObject({ code: 'not_found' })
+  })
+})
+
+describe('usage limits', () => {
+  const usage = (fiveHour: number, weekly: number, resets = '2026-10-20T07:00:00Z') => ({
+    provider: 'claude_code',
+    fiveHour: { percent: fiveHour, resetsAt: resets },
+    weekly: { percent: weekly, resetsAt: '2026-10-25T00:00:00Z' },
+  })
+  const fresh = async (s: World, credential: string) =>
+    (await authenticateRunner(s.db.db, s.ctx.config, credential, s.clock.now()))!
+
+  it('keeps new runs queued above the ceiling and starts them when usage drops (AC-26)', async () => {
+    const s = await setup()
+    const r = await enroll(s)
+    await reportCapacity(s.system, r.row, usage(85, 10))
+    const { run } = await queuedRun(s)
+    let row = await fresh(s, r.credential)
+    expect(await runnerQueue(s.system, row)).toEqual([])
+    await expect(claimRun(s.system, row, run.id, { idempotencyKey: 'c' })).rejects.toMatchObject({
+      details: { code: 'capacity_exceeded', window: 'fiveHour', percent: 85, ceiling: 80 },
+    })
+    expect((await listRuns(s.ctx, s.project.id, run.taskId))[0]!.state).toBe('queued')
+
+    await reportCapacity(s.system, row, usage(40, 10))
+    row = await fresh(s, r.credential)
+    expect(await runnerQueue(s.system, row)).toHaveLength(1)
+    expect((await claimRun(s.system, row, run.id, { idempotencyKey: 'c' })).run.fencingToken).toBe(
+      1,
+    )
+  })
+
+  it('does not stop work that is already running when usage crosses the ceiling', async () => {
+    const s = await setup()
+    const r = await enroll(s)
+    const { run } = await queuedRun(s)
+    const claim = await claimRun(s.system, r.row, run.id, { idempotencyKey: 'c' })
+    await reportCapacity(s.system, r.row, usage(95, 10))
+    const row = await fresh(s, r.credential)
+    expect(await heartbeatRun(s.system, row, run.id, claim.run.fencingToken)).toHaveProperty(
+      'leaseExpiresAt',
+    )
+  })
+
+  it('applies a weekly ceiling too, and a ceiling of 100 lets everything through', async () => {
+    const s = await setup()
+    const r = await enroll(s)
+    const { run } = await queuedRun(s)
+    await reportCapacity(s.system, r.row, usage(10, 70))
+    expect(await runnerQueue(s.system, await fresh(s, r.credential))).toEqual([])
+    await updateRunner(s.ctx, r.runner.id, {
+      ceilings: { claude_code: { fiveHour: 100, weekly: 100 } },
+    })
+    const row = await fresh(s, r.credential)
+    expect(await runnerQueue(s.system, row)).toHaveLength(1)
+    expect((await claimRun(s.system, row, run.id, { idempotencyKey: 'c' })).run.id).toBe(run.id)
+  })
+
+  it('treats a window that already reset as empty', async () => {
+    const s = await setup()
+    const r = await enroll(s)
+    await queuedRun(s)
+    await reportCapacity(s.system, r.row, usage(99, 10, '2026-10-20T02:00:00Z'))
+    expect(await runnerQueue(s.system, await fresh(s, r.credential))).toHaveLength(1)
+  })
+
+  it("is per provider: another provider's usage doesn't block", async () => {
+    const s = await setup()
+    const r = await enroll(s, 'box', ['claude_code', 'codex'])
+    await queuedRun(s)
+    await reportCapacity(s.system, r.row, { ...usage(99, 99), provider: 'codex' })
+    expect(await runnerQueue(s.system, await fresh(s, r.credential))).toHaveLength(1)
+  })
+
+  it('shows the reported usage and ceilings on the runner (AC-27)', async () => {
+    const s = await setup()
+    const r = await enroll(s)
+    await reportCapacity(s.system, r.row, usage(34, 5))
+    await updateRunner(s.ctx, r.runner.id, { ceilings: { codex: { fiveHour: 60, weekly: 50 } } })
+    const [dto] = await listRunners(s.ctx)
+    expect(dto!.capacity.claude_code).toMatchObject({
+      fiveHour: { percent: 34, resetsAt: '2026-10-20T07:00:00Z' },
+      weekly: { percent: 5 },
+    })
+    expect(dto!.ceilings.codex).toEqual({ fiveHour: 60, weekly: 50 })
+  })
+
+  async function limitHit(s: World, resetsAt?: string) {
+    const r = await enroll(s)
+    const { task, run } = await queuedRun(s)
+    const claim = await claimRun(s.system, r.row, run.id, { idempotencyKey: 'c1' })
+    await recordRunEvent(s.system, r.row, run.id, {
+      eventId: 's',
+      sequence: 1,
+      type: 'session',
+      payload: { sessionRef: 'sess-9' },
+      fencingToken: claim.run.fencingToken,
+    })
+    await recordRunEvent(s.system, r.row, run.id, {
+      eventId: 'cap',
+      sequence: 2,
+      type: 'capacity_wait',
+      payload: resetsAt ? { resetsAt, window: 'fiveHour' } : {},
+      fencingToken: claim.run.fencingToken,
+    })
+    return { r, task, run, token: claim.run.fencingToken }
+  }
+
+  it('pauses without failing, then resumes the same session once after the reset (AC-25)', async () => {
+    const s = await setup()
+    const { r, task, run, token } = await limitHit(s, '2026-10-20T08:00:00Z')
+    const paused = await getTask(s.ctx, s.project.id, task.id)
+    expect(paused.state).toBe('in_progress')
+    expect(paused.run).toMatchObject({
+      state: 'waiting_for_capacity',
+      resumeAt: '2026-10-20T08:00:00.000Z',
+    })
+    // The stopped process can't report anything more.
+    await expect(heartbeatRun(s.system, r.row, run.id, token)).rejects.toMatchObject({
+      details: { code: 'stale_fencing' },
+    })
+    s.clock.advance(60 * 60_000)
+    expect(await runnerQueue(s.system, r.row)).toEqual([])
+    await expect(
+      claimRun(s.system, r.row, run.id, { idempotencyKey: 'early' }),
+    ).rejects.toMatchObject({
+      details: { code: 'claim_conflict' },
+    })
+
+    s.clock.advance(5 * 60 * 60_000)
+    expect(await runnerQueue(s.system, r.row)).toHaveLength(1)
+    const results = await Promise.allSettled([
+      claimRun(s.system, r.row, run.id, { idempotencyKey: 'resume-a' }),
+      claimRun(s.system, r.row, run.id, { idempotencyKey: 'resume-b' }),
+    ])
+    expect(results.filter((x) => x.status === 'fulfilled')).toHaveLength(1)
+    const ok = (
+      results.find((x) => x.status === 'fulfilled') as PromiseFulfilledResult<
+        Awaited<ReturnType<typeof claimRun>>
+      >
+    ).value
+    expect(ok.run.sessionRef).toBe('sess-9')
+    expect(ok.run.fencingToken).toBeGreaterThan(token)
+    const [saved] = await s.db.db.select().from(runs).where(eq(runs.id, run.id))
+    expect(saved).toMatchObject({ state: 'running', capacityResumes: 1, resumeAt: null })
+    expect((await getTask(s.ctx, s.project.id, task.id)).state).toBe('in_progress')
+  })
+
+  it('waits half an hour when the provider gives no reset time', async () => {
+    const s = await setup()
+    const { run } = await limitHit(s)
+    const [saved] = await s.db.db.select().from(runs).where(eq(runs.id, run.id))
+    expect(saved!.resumeAt!.getTime()).toBe(s.clock.now().getTime() + 30 * 60_000)
+  })
+
+  it('hands over to a person after repeated limit hits in one run', async () => {
+    const s = await setup()
+    const { r, task, run } = await limitHit(s, '2026-10-20T04:00:00Z')
+    let seq = 3
+    for (let i = 0; i < 3; i += 1) {
+      s.clock.advance(2 * 60 * 60_000)
+      const claim = await claimRun(s.system, r.row, run.id, { idempotencyKey: `r${i}` })
+      await recordRunEvent(s.system, r.row, run.id, {
+        eventId: `cap${i}`,
+        sequence: seq++,
+        type: 'capacity_wait',
+        payload: { resetsAt: new Date(s.clock.now().getTime() + 3_600_000).toISOString() },
+        fencingToken: claim.run.fencingToken,
+      })
+    }
+    const after = await getTask(s.ctx, s.project.id, task.id)
+    expect(after.run).toMatchObject({ state: 'interrupted' })
+    expect(after.run?.failureReason).toMatch(/again and again/)
+    expect(after.state).toBe('in_progress')
+  })
+
+  it('can be cancelled while waiting, and then never resumes', async () => {
+    const s = await setup()
+    const { r, task, run } = await limitHit(s, '2026-10-20T04:00:00Z')
+    await cancelRun(s.ctx, s.project.id, run.id, 'No longer needed')
+    expect((await getTask(s.ctx, s.project.id, task.id)).state).toBe('ready')
+    s.clock.advance(5 * 3_600_000)
+    expect(await runnerQueue(s.system, r.row)).toEqual([])
   })
 })

@@ -5,6 +5,7 @@ import {
   createEnrollmentInput,
   enrollRunnerInput,
   fencedInput,
+  reportCapacityInput,
   runEventInput,
   runnerSelfInput,
   startRunInput,
@@ -83,6 +84,14 @@ export const runRoutes = new Hono<AppEnv>()
   .use('/runner/*', runnerAuth)
   .put('/runner/self', async (c) => {
     await runners.updateRunnerSelf(serviceCtx(c), c.get('runner')!, await body(c, runnerSelfInput))
+    return c.body(null, 204)
+  })
+  .put('/runner/capacity', async (c) => {
+    await runners.reportCapacity(
+      serviceCtx(c),
+      c.get('runner')!,
+      await body(c, reportCapacityInput),
+    )
     return c.body(null, 204)
   })
   .get('/runner/queue', async (c) => {

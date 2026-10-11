@@ -138,8 +138,29 @@ export const RUN_LEASE_SECONDS = 90
 export const RUNNER_ONLINE_SECONDS = 120
 export const RUNNER_ENROLLMENT_MINUTES = 60
 
-export const RUN_EVENT_TYPES = ['progress', 'log', 'session'] as const
+export const RUN_EVENT_TYPES = ['progress', 'log', 'session', 'capacity_wait'] as const
 export type RunEventType = (typeof RUN_EVENT_TYPES)[number]
 
 export const RUN_OUTCOMES = ['succeeded', 'failed', 'interrupted'] as const
 export type RunOutcome = (typeof RUN_OUTCOMES)[number]
+
+/** Default share of a provider account's usage window that employees may use (D-14). */
+export const DEFAULT_CEILINGS = { fiveHour: 80, weekly: 70 } as const
+/** After this many automatic resumes in one run, a person decides (stops endless limit loops). */
+export const MAX_CAPACITY_RESUMES = 3
+
+export interface UsageWindow {
+  /** 0-100, how much of the window the account has used. */
+  percent: number
+  /** When the window resets (ISO). */
+  resetsAt: string | null
+}
+export interface ProviderCapacity {
+  fiveHour: UsageWindow | null
+  weekly: UsageWindow | null
+  reportedAt: string
+}
+export interface Ceilings {
+  fiveHour: number
+  weekly: number
+}

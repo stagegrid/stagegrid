@@ -7,7 +7,7 @@ import type {
   RunEventInput,
   StartRunInput,
 } from '@stagegrid/shared'
-import { ACTIVE_RUN_STATES } from '@stagegrid/shared'
+import { ACTIVE_RUN_STATES, MAX_CAPACITY_RESUMES } from '@stagegrid/shared'
 import { and, asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm'
 
 import type { DbOrTx, Tx } from '../db/client'
@@ -21,6 +21,7 @@ import {
   taskContextRevisions,
   tasks,
 } from '../db/schema'
+import { capacityBlock, ceilingsFor } from '../domain/capacity'
 import { isClaimable, leaseDeadline } from '../domain/runs'
 import { conflict, notFound } from '../errors'
 import { newId } from '../lib/ids'
@@ -319,8 +320,11 @@ export async function runnerQueue(ctx: ServiceContext, runner: RunnerRow): Promi
     .orderBy(asc(runs.createdAt), asc(runs.id))
     .limit(50)
   const now = ctx.now()
+  // Above the ceiling, new work stays queued; it is offered again as soon as the usage drops or resets.
+  const blocked = (provider: string) =>
+    capacityBlock(runner.capacity[provider], ceilingsFor(runner.ceilings, provider), now) !== null
   return rows
-    .filter(({ run }) => isClaimable(run, now))
+    .filter(({ run }) => isClaimable(run, now) && !blocked(run.runtime.provider))
     .map(({ run, title }) => ({
       id: run.id,
       projectId: run.projectId,
@@ -389,6 +393,16 @@ export async function claimRun(
         code: 'claim_conflict',
         state: run.state,
       })
+    const block = capacityBlock(
+      runner.capacity[run.runtime.provider],
+      ceilingsFor(runner.ceilings, run.runtime.provider),
+      now,
+    )
+    if (block)
+      throw conflict(
+        `This account is at ${block.percent}% of its ${block.window === 'fiveHour' ? '5-hour' : 'weekly'} usage, above the ${block.ceiling}% ceiling.`,
+        { code: 'capacity_exceeded', ...block },
+      )
     const [{ busy } = { busy: 0 }] = await tx
       .select({ busy: sql<number>`count(*)::int` })
       .from(runs)
@@ -422,6 +436,8 @@ export async function claimRun(
         fencingToken: run.fencingToken + 1,
         leaseExpiresAt: leaseDeadline(now),
         resumeAt: null,
+        capacityResumes:
+          run.state === 'waiting_for_capacity' ? run.capacityResumes + 1 : run.capacityResumes,
         claimedAt: run.claimedAt ?? now,
         updatedAt: now,
       })
@@ -516,6 +532,7 @@ export async function recordRunEvent(
       payload: input.payload,
       recordedAt: now,
     })
+    if (input.type === 'capacity_wait') return pauseForCapacity(tx, txCtx, run, input, now)
     const patch: Partial<typeof runs.$inferInsert> = {
       lastSequence: input.sequence,
       leaseExpiresAt: leaseDeadline(now),
@@ -531,6 +548,57 @@ export async function recordRunEvent(
     })
     return { eventId: input.eventId, sequence: input.sequence, duplicate: false }
   })
+}
+
+const DEFAULT_CAPACITY_WAIT_MS = 30 * 60_000
+
+/**
+ * The provider's usage limit was reached. The run waits, without failing, until the reset time and
+ * is then claimed again, resuming the same session. The claim is revoked so the stopped process
+ * can't report anything more. After a few limit hits in one run a person decides instead.
+ */
+async function pauseForCapacity(
+  tx: Tx,
+  ctx: ServiceContext,
+  run: RunRow,
+  input: RunEventInput,
+  now: Date,
+): Promise<EventReceipt> {
+  const given = typeof input.payload.resetsAt === 'string' ? new Date(input.payload.resetsAt) : null
+  const resumeAt =
+    given && !Number.isNaN(given.getTime()) && given.getTime() > now.getTime()
+      ? given
+      : new Date(now.getTime() + DEFAULT_CAPACITY_WAIT_MS)
+  const tooMany = run.capacityResumes >= MAX_CAPACITY_RESUMES
+  await tx
+    .update(runs)
+    .set({
+      state: tooMany ? 'interrupted' : 'waiting_for_capacity',
+      resumeAt: tooMany ? null : resumeAt,
+      failureReason: tooMany
+        ? 'The usage limit was hit again and again. Decide whether to retry.'
+        : null,
+      fencingToken: run.fencingToken + 1,
+      leaseExpiresAt: null,
+      lastSequence: input.sequence,
+      finishedAt: tooMany ? now : null,
+      updatedAt: now,
+    })
+    .where(eq(runs.id, run.id))
+  await audit(tx, ctx, {
+    projectId: run.projectId,
+    action: tooMany ? 'run.interrupted' : 'run.waiting_for_capacity',
+    targetType: 'run',
+    targetId: run.id,
+    after: { resumeAt: resumeAt.toISOString(), window: input.payload.window ?? null },
+  })
+  await notify(tx, ctx, run.projectId, 'run.updated', {
+    runId: run.id,
+    taskId: run.taskId,
+    state: tooMany ? 'interrupted' : 'waiting_for_capacity',
+  })
+  await notify(tx, ctx, run.projectId, 'task.updated', { taskId: run.taskId })
+  return { eventId: input.eventId, sequence: input.sequence, duplicate: false }
 }
 
 /**
